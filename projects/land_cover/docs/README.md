@@ -2,9 +2,17 @@
 
 ## Data Location
 
-Project Location: /att/gpfsfs/atrepo01/ILAB/projects/Ethiopia
-Data Location: /att/nobackup/walemu/NASA_NPP/CRPld_Map_Pred_and_Forec/EVHR/Gonji_Subset/5-toas
-Data Location Local: /Users/jacaraba/Desktop/development/ilab/ethiopia-lcluc/adapt-data
+- Project Location: /att/gpfsfs/atrepo01/ILAB/projects/Ethiopia
+- Data Location: /att/nobackup/walemu/NASA_NPP/CRPld_Map_Pred_and_Forec/EVHR/Gonji_Subset/5-toas
+- Data Location Local: /Users/jacaraba/Desktop/development/ilab/ethiopia-lcluc/adapt-data
+
+Land use/cover codes
+0 = Crops
+1 = Shrub
+3 = Forest
+4 = Grass
+5 = Bare
+6 = Water
 
 ## Training Data
 
@@ -13,7 +21,7 @@ Data Location Local: /Users/jacaraba/Desktop/development/ilab/ethiopia-lcluc/ada
   - What year was used to create this raster?
   - Respective shape files are location in the directory
 
-- Continuous
+- Continuous (preferred from training)
   - Gonji_Kolela_All_2_SymDiff_SortLat_01_prj_v3r1m.tif: 1 meter resolution, classes 1-6
   - Gonji_Kolela_All_2_SymDiff_SortLat_01_prj_v3r20cm.tif: 20 cm resolution
   - Gonji_Kolela_All_2_SymDiff_SortLat_01_prj_v3.shp: shapefile
@@ -26,6 +34,7 @@ Data Location Local: /Users/jacaraba/Desktop/development/ilab/ethiopia-lcluc/ada
 
     The project people exclude road and river networks from the people’s landholdings data, when they digitize the aerial photos.
     So, these networks are assigned with noData in the raster. I hope that will not create an issue in the classification.
+  - Few years = two years, we can use labels of two years in difference
 
 ## Matching Data
 
@@ -42,9 +51,21 @@ Which means we can only used M1BS for training since we would need indices for P
 ## Questions
 
 - Weekly meetings? What days are you available?
+  - Friday's 13:00-14:00
+- Where did you get the labels from?
+  - Office from Ethiopia, land administration, to get the data through personal communication
+  - Very hard to get labeled data, communication takes a very long time - 2-3 months
+  - LIFT - Brithish government covers the problem, more than 9 years
+  - Aerial photos, spatial resolution? cm's
+
 - Can we get data from 2016?
 - Are you sure that is a good comparison with other dates lines 2014 or 2018
 - Where did you get the training from?
+- Active microwave data as a compliment
+
+## Action Items
+
+- We need more labeled data
 
 ## Problems
 
@@ -54,6 +75,13 @@ Which means we can only used M1BS for training since we would need indices for P
 - we need validation data for the AGU presentation
 - Since we do not have matching labels for each image, WV02_20100215_M1BS_10300100043A6100-toa-clipped cannot be used for training
 or validation because of the presence of the cloud
+
+## Priorities
+
+- AGU Presentation
+  - Where we can get images for the region
+  - some training data on the existing ones that we have
+  - make the training data match multi-spectral 2m resolution
 
 ## Random Forest Run
 
