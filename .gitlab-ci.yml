@@ -14,6 +14,7 @@ build_docker_container:
   allow_failure: false
   dependencies: []
   script:
-    - pip install hpccm
+    - yum install python3-pip -y
+    - pip3 install hpccm
 
 
