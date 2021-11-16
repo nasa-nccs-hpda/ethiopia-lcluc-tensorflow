@@ -286,7 +286,7 @@ def main():
                 prediction = median_filter(cp.asarray(prediction), size=20)
                 prediction = cp.asnumpy(prediction)
 
-                toraster(
+                to_cog(
                     rast=rast, prediction=prediction, output=output_filename)
                 prediction = None  # unload between each iteration
 
