@@ -4,9 +4,27 @@
 
 Project Location: /att/gpfsfs/atrepo01/ILAB/projects/Ethiopia
 Data Location: /att/nobackup/walemu/NASA_NPP/CRPld_Map_Pred_and_Forec/EVHR/Gonji_Subset/5-toas
+Data Location (Formal regions): /att/nobackup/mwooten3/Ethiopia_Woubet/VHR/M1BS/*-toa.tif
 Data Location Local: /Users/jacaraba/Desktop/development/ilab/ethiopia-lcluc/adapt-data
 
+## Files to Use
+
+Training Images: 
+we are going to use the 6 class image
+
 ## Training Data
+
+0=crop
+1=shrub
+2=forest
+3=bare
+4=settlement
+5=grass
+
+we are going to use the 6 class image
+the 5 class we use part of it for validation
+we are going to use data from 2014, 2015, and 2016
+
 
 - Non-continuous
   - Gonji_Kolela_All_2_SymDiff_SortLat_01_prj_selectS_ras: non-continuous labels, 1-7 classes of fields.
@@ -26,6 +44,9 @@ Data Location Local: /Users/jacaraba/Desktop/development/ilab/ethiopia-lcluc/ada
 
     The project people exclude road and river networks from the people’s landholdings data, when they digitize the aerial photos.
     So, these networks are assigned with noData in the raster. I hope that will not create an issue in the classification.
+  - Updates:
+    - The new data is located under /att/gpfsfs/briskfs01/ppl/walemu/NASA_NPP/CRPld_Map_Pred_and_Forec/Training_data/Gonji Kolela/Shapefile/for_jordan
+    - Copied the data to: /att/gpfsfs/atrepo01/ILAB/projects/Ethiopia
 
 ## Matching Data
 
@@ -76,3 +97,21 @@ python rf_pipeline.py --step train \
                       --bands CB B G Y R RE NIR1 NIR2 --test-size 0.20 --seed 22 --n-trees 20 --max-features log2 \
                       --output-model /Users/jacaraba/Desktop/development/ilab/ethiopia-lcluc/adapt-data/random_forest/rf-ethiopia-8band.pkl
 ```
+
+## Messages to Digest
+
+    Hi Jordan. I have placed a new training data at "/att/gpfsfs/briskfs01/ppl/walemu/NASA_NPP/CRPld_Map_Pred_and_Forec/Training_data/Gonji Kolela/Shapefile",
+    with file names "Gonji_Kolela_All_2_SymDiff_SortLat_01_05_prjc_noNA_5class.tif" and "Gonji_south_training_boundary.shp". The later is just a boundary, if you need it for something.
+
+    I am also preparing another similar training data on the northeast of this one. I placed the shapefile here with file name "Gonji_north_training_boundary.shp". I will do it and let you know when it is ready.
+    
+
+    I am preparing another training data on the north of this current one, because, the WV MS images for 2014-2018 didn't cover the whole training data that I placed on Adapt today. The second half of the training data is totally covered by WV images from these years. It will nice if we talk early next week (or even tomorrow if you are available) about these datasets. Let me know. Thanks
+
+    I just make it codded class and placed it at "/att/gpfsfs/briskfs01/ppl/walemu/NASA_NPP/CRPld_Map_Pred_and_Forec/Training_data/Gonji Kolela/Shapefile/for_jordan/". Thanks
+
+    Hi Jordan. I just place the second chunk of training data at "/att/gpfsfs/briskfs01/ppl/walemu/NASA_NPP/CRPld_Map_Pred_and_Forec/Training_data/Gonji Kolela/Shapefile/for_jordan/". This second set of traing data have good WV image coverage. 
+    
+I also moved the previous one in this same directory. Let me know, if you have any question.
+
+

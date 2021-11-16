@@ -19,6 +19,7 @@ import xarray as xr
 import pandas as pd
 import rasterio as rio
 import rasterio.features as riofeat
+from osgeo import gdal, osr
 
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier as sklRFC
@@ -30,7 +31,7 @@ try:
     import cupy as cp
     import cudf as cf
     from cuml.ensemble import RandomForestClassifier as cumlRFC
-    from cuml.dask.ensemble import RandomForestClassifier as cumlRFC_mg
+    # from cuml.dask.ensemble import RandomForestClassifier as cumlRFC_mg
     from cupyx.scipy.ndimage import median_filter
     cp.random.seed(seed=None)
     HAS_GPU = True
@@ -89,41 +90,37 @@ def predict(data, model, ws=[5120, 5120]):
     return prediction.astype('int16')  # type to int16
 
 
-def toraster(
-        rast: str, prediction: np.array, nodataval=[-9999],
-        dtype: str = 'int16', output: str = 'rfmask.tif'):
-    """
-    Save tif file from numpy to disk.
-    :param rast: raster name to get metadata from
-    :param prediction: numpy array with prediction output
-    :param dtype type to store mask on
-    :param output: raster name to save on
-    :return: None, tif file saved to disk
-    ----------
-    Example
-        raster.toraster(filename, raster_obj.prediction, outname)
-    ----------
-    """
-    # get meta features from raster
-    with rio.open(rast) as src:
-        meta = src.profile
+def to_cog(
+        input_array, output_filename, original_filename,
+        transform, epsg=32628, ndval=255, ovr=[2, 4, 8, 16, 32, 64]):
+
+    # get geospatial profile, will apply for output file
+    with rio.open(original_filename) as src:
         nodatavals = src.read_masks(1).astype('int16')
-    # logging.info(meta)
+    input_array[nodatavals != ndval] = ndval
 
-    prediction = prediction.astype('int16')
+    pixel_width, offset, x_origin, offset, pixel_height, y_origin = transform
+    x_size, y_size = input_array.shape
 
-    nodatavals[nodatavals == 0] = -9999
-    prediction[nodatavals == -9999] = \
-        nodatavals[nodatavals == -9999]
+    driver = gdal.GetDriverByName('MEM')
+    dataset = driver.Create('', y_size, x_size, 1, gdal.GDT_Byte)
+    dataset.SetGeoTransform(
+        (x_origin, pixel_width, offset, y_origin, offset, pixel_height))
 
-    out_meta = meta  # modify profile based on numpy array
-    out_meta['count'] = 1  # output is single band
-    out_meta['dtype'] = dtype  # data type modification
+    dataset.GetRasterBand(1).WriteArray(input_array)
+    dataset.GetRasterBand(1).SetNoDataValue(ndval)
+    dataset.BuildOverviews("NEAREST", ovr)
 
-    # write to a raster
-    with rio.open(output, 'w', **out_meta) as dst:
-        dst.write(prediction, 1)
-    logging.info(f'Prediction saved at {output}')
+    outRasterSRS = osr.SpatialReference()
+    outRasterSRS.ImportFromEPSG(epsg)
+    dataset.SetProjection(outRasterSRS.ExportToWkt())
+
+    driver = gdal.GetDriverByName('GTiff')
+    driver.CreateCopy(
+        output_filename, dataset,
+        options=["COPY_SRC_OVERVIEWS=YES", "TILED=YES", "COMPRESS=LZW"])
+    del input_array, dataset
+    return
 
 
 # -----------------------------------------------------------------------------
@@ -229,8 +226,8 @@ def main():
         # 2. Extract points out of spatial imagery - rasters
         # ----------------------------------------------------------------------------
         # set empty dataframe to store point values
-        df_points = pd.DataFrame(columns=args.bands + ['CLASS'])
         list_points = []
+        df_points = pd.DataFrame(columns=args.bands + ['CLASS'])
         logging.info(f"Generating {data_df['ntiles'].sum()} points dataset.")
 
         # start iterating over each file
@@ -465,12 +462,7 @@ def main():
         assert os.path.exists(args.output_pkl), f'{args.output_pkl} not found.'
         model = joblib.load(args.output_pkl)  # loading pkl in parallel
         logging.info(f'Loaded model {args.output_pkl}.')
-
-        logging.info(dir(model))   # .estimators_[0])
-        #    export_text(
-        #        model.estimators_[0], spacing=3, decimals=3,
-        #        feature_names=args.bands)
-        #    )
+        logging.info(dir(model))
 
     return
 
