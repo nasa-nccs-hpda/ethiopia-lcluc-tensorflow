@@ -18,9 +18,9 @@ mixed_precision: True
 # PRISM testing
 data_output_dir: '/lscratch/jacaraba/ethiopia'
 
-model_filename: '/att/gpfsfs/atrepo01/ILAB/projects/Senegal/LCLUC_Senegal_Cloud/senegal_cloud_v3/model/unet_epoch_iou_406_0.50434.pt'
-inference_output_dir: '/att/gpfsfs/atrepo01/ILAB/projects/Senegal/LCLUC_Senegal_Cloud/cloud_masks/Aki-tiles-ETZ'
-data_predict: '/att/nobackup/mwooten3/Senegal_LCLUC/VHR/priority-tiles/Aki-tiles-ETZ/M1BS/*.tif'
+#model_filename: '/att/gpfsfs/atrepo01/ILAB/projects/Senegal/LCLUC_Senegal_Cloud/senegal_cloud_v3/model/unet_epoch_iou_406_0.50434.pt'
+inference_output_dir: '/adapt/nobackup/projects/ilab/projects/Ethiopia/LCLUC_Ethiopia/cnn'
+data_predict: '/adapt/nobackup/projects/ilab/projects/Ethiopia/LCLUC_Ethiopia/data/images/*.tif'
 
 #-----------------------------------------------------------------------
 # Data Parameters
