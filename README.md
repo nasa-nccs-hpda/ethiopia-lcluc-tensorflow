@@ -2,6 +2,10 @@
 
 Ethiopia LCLUC
 
+## Data Directory
+
+/adapt/nobackup/projects/ilab/projects/Ethiopia/LCLUC_Ethiopia
+
 ## Container
 
 ```bash

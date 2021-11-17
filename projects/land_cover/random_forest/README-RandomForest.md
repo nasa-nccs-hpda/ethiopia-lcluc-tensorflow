@@ -17,11 +17,11 @@ python rf_pipeline.py --step preprocess \
 ## Train
 
 ```bash
-cd /att/pubrepo/ILAB/projects/Ethiopia/ethiopia-lcluc/projects/land_cover/random_forest
+cd /adapt/nobackup/projects/ilab/projects/Ethiopia/LCLUC_Ethiopia/ethiopia-lcluc/projects/land_cover/random_forest
 python rf_pipeline_gpu.py --step train \
-                      --train-csv /att/pubrepo/ILAB/projects/Ethiopia/ethiopia-lcluc-data/data/random_forest/train_data.csv \
-                      --train-size 0.90 --seed 22 --n-trees 40 --max-features log2 \
-                      --output-model /att/pubrepo/ILAB/projects/Ethiopia/ethiopia-lcluc-data/data/random_forest/rf-ethiopia-8band.pkl
+                      --train-csv /adapt/nobackup/projects/ilab/projects/Ethiopia/LCLUC_Ethiopia/random_forest/train_data_ethiopia_v2.csv \
+                      --train-size 0.80 --seed 22 --n-trees 200 --max-features log2 \
+                      --output-model /adapt/nobackup/projects/ilab/projects/Ethiopia/LCLUC_Ethiopia/random_forest/rf-ethiopia-8band.pkl
 ```
 
 ## Results
