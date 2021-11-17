@@ -508,7 +508,7 @@ class Predict(Preprocess):
             # merged_mask = cv2.dilate(merged_mask, kernel, iterations = 1)  # dilation
             # merged_mask = cv2.medianBlur(merged_mask, 25)
             merged_mask = median_filter(merged_mask, size=25)
-            merged_mask = self._binary_fill(merged_mask)
+            #merged_mask = self._binary_fill(merged_mask)
 
             # dilation = cv2.dilate(img,kernel,iterations = 1)
             # merged_mask = self._grow(merged_mask)
