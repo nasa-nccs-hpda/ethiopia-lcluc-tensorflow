@@ -12,6 +12,6 @@ singularity build --sandbox nccs-lcluc docker://gitlab.nccs.nasa.gov:5050/nccs-l
 ## Using the container
 
 ```bash
-singularity shell -B /att --nv nccs-lcluc
+singularity shell -B /att,/lscratch/jacaraba:/tmp --nv nccs-lcluc
 source activate rapids
 ```

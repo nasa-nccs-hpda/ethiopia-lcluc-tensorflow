@@ -206,6 +206,7 @@ def main():
         # 2. Shuffle and Split Dataset
         # ----------------------------------------------------------------------------
         data_df = data_df.sample(frac=1).reset_index(drop=True)  # shuffle data
+        logging.info(data_df['CLASS'].value_counts())
 
         # split dataset, fix type
         x = data_df.iloc[:, :-1].astype(np.float32)
