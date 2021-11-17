@@ -27,3 +27,7 @@ python rf_pipeline_gpu.py --step train \
 ## Results
 
 0.5502083897590637 - 20, log2
+
+
+
+python cnn_pipeline.py -c ../config/config.yaml -d ../config/ethiopia-land-cover-dataset-rf-2021-10-22.csv -s preprocess

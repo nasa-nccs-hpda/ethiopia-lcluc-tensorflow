@@ -212,6 +212,9 @@ class Preprocess(Config):
         mask = np.squeeze(mask) if len(mask.shape) != 2 else mask
         mask = mask - 1 if np.min(mask) == 1 else mask
 
+        # temporary
+        mask[mask == 14] = 5
+
         # modify labels if needed
         logging.info(f"Unique label classes: {np.unique(mask)}")
         # if self.modify_labels:
