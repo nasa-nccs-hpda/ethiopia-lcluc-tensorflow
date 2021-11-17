@@ -281,11 +281,11 @@ def main():
                 prediction = predict(img, model, ws=[args.ws, args.ws])
 
                 # sieve
-                riofeat.sieve(prediction, 800, prediction, None, 8)
+                #riofeat.sieve(prediction, 800, prediction, None, 8)
 
                 # median
-                prediction = median_filter(cp.asarray(prediction), size=20)
-                prediction = cp.asnumpy(prediction)
+                #prediction = median_filter(cp.asarray(prediction), size=20)
+                #prediction = cp.asnumpy(prediction)
 
                 to_cog(
                     rast=rast, prediction=prediction, output=output_filename)
