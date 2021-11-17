@@ -274,6 +274,7 @@ def main():
                 gc.collect()  # clean garbage
                 logging.info(f"Starting new prediction...{rast}")
                 img = xr.open_rasterio(rast)
+                transform = img.attrs['transform']
                 logging.info(f'Modified image: {img.shape}')
 
                 # crop ROI, from outside to inside based on pixel value
@@ -286,9 +287,8 @@ def main():
                 # median
                 #prediction = median_filter(cp.asarray(prediction), size=20)
                 #prediction = cp.asnumpy(prediction)
-
                 to_cog(
-                    rast=rast, prediction=prediction, output=output_filename)
+                    input_array=prediction, original_filename=rast, output_filename=output_filename, transform=transform)
                 prediction = None  # unload between each iteration
 
             else:
