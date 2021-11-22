@@ -117,7 +117,6 @@ Which means we can only use M1BS for training since we would need indices for P1
 
 ### 2021-10-22
 
-<<<<<<< HEAD
 ```bash
 python rf_pipeline.py --step train \
                       --train-csv /Users/jacaraba/Desktop/development/ilab/ethiopia-lcluc/adapt-data/random_forest/rf-data.csv \
