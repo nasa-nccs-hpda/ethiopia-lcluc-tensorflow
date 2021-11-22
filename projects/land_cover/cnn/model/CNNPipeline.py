@@ -212,6 +212,8 @@ class Preprocess(Config):
         mask = np.squeeze(mask) if len(mask.shape) != 2 else mask
         mask = mask - 1 if np.min(mask) == 1 else mask
 
+        print("mask unique", np.unique(mask))
+
         # temporary
         mask[mask == 14] = 5
 
@@ -287,8 +289,8 @@ class Train(Config):
             val_ds, batch_size=self.batch_size, shuffle=True)
 
         # Loss and Optimizer
-        # self.criterion = nn.CrossEntropyLoss().to(self.device)
-        self.criterion = mIoULoss(n_classes=self.n_classes).to(self.device)
+        self.criterion = nn.CrossEntropyLoss().to(self.device)
+        #self.criterion = mIoULoss(n_classes=self.n_classes).to(self.device)
         # self.criterion = FocalLoss().to(self.device)
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=0.0001)
         self.scheduler = torch.optim.lr_scheduler.StepLR(
