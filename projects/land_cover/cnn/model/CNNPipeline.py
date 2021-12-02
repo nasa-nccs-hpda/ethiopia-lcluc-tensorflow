@@ -84,11 +84,6 @@ class CloudDataset(Dataset):
         #    image = preprocessing.standardizeLocalCalcTensor(
         # image, means, stds)
         # else:
-
-        # x = preprocessing.standardize_global(x)
-        x = from_dlpack(x.toDlpack()).float()
-        y = from_dlpack(y.toDlpack()).long()
-
         return x, y
 
     # -------------------------------------------------------------------------
@@ -108,16 +103,19 @@ class CloudDataset(Dataset):
             )
         return files_list
 
-    def open_image(self, idx: int, invert: bool = True, norm: bool = True):
+    def open_image(
+            self, idx: int, invert: bool = True, norm: bool = True,
+            std: bool = True):
         image = xp.load(self.files[idx]['image'], allow_pickle=False)
         image = image.transpose((2, 0, 1)) if invert else image
         image = (image / xp.iinfo(image.dtype).max) if norm else image
-        return image
+        image = preprocessing.standardize_local(image) if std else image
+        return from_dlpack(image.toDlpack()).float()
 
     def open_mask(self, idx: int, add_dims: bool = False):
         mask = xp.load(self.files[idx]['label'], allow_pickle=False)
         mask = xp.expand_dims(mask, 0) if add_dims else mask
-        return mask
+        return from_dlpack(mask.toDlpack()).long()
 
 
 class Preprocess(Config):
