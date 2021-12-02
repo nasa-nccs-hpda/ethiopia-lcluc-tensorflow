@@ -64,20 +64,20 @@ class CloudDataset(Dataset):
         if self.augment:
 
             if xp.random.random_sample() > 0.5:  # flip left and right
-                x = xp.fliplr(x)
-                y = xp.fliplr(y)
+                x = torch.fliplr(x)
+                y = torch.fliplr(y)
             if xp.random.random_sample() > 0.5:  # reverse second dimension
-                x = xp.flipud(x)
-                y = xp.flipud(y)
+                x = torch.flipud(x)
+                y = torch.flipud(y)
             if xp.random.random_sample() > 0.5:  # rotate 90 degrees
-                x = xp.rot90(x, k=1, dims=[1, 2])
-                y = xp.rot90(y, k=1, dims=[0, 1])
+                x = torch.rot90(x, k=1, dims=[1, 2])
+                y = torch.rot90(y, k=1, dims=[0, 1])
             if xp.random.random_sample() > 0.5:  # rotate 180 degrees
-                x = xp.rot90(x, k=2, dims=[1, 2])
-                y = xp.rot90(y, k=2, dims=[0, 1])
+                x = torch.rot90(x, k=2, dims=[1, 2])
+                y = torch.rot90(y, k=2, dims=[0, 1])
             if xp.random.random_sample() > 0.5:  # rotate 270 degrees
-                x = xp.rot90(x, k=3, dims=[1, 2])
-                y = xp.rot90(y, k=3, dims=[0, 1])
+                x = torch.rot90(x, k=3, dims=[1, 2])
+                y = torch.rot90(y, k=3, dims=[0, 1])
 
         # standardize 0.70, 0.30
         # if np.random.random_sample() > 0.70:
