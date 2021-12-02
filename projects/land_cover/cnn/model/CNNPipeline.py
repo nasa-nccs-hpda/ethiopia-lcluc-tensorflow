@@ -4,12 +4,20 @@ import os
 import sys
 import glob
 import logging
+from pathlib import Path
 
 import xarray as xr
 import numpy as np
 from tifffile import imsave
 from tifffile import imread
-from sklearn.feature_extraction import image
+from sklearn import feature_extraction
+
+from torch.utils.dlpack import from_dlpack
+from terragpu.engine import array_module, df_module
+import terragpu.ai.preprocessing as preprocessing
+
+xp = array_module('cupy')
+xf = df_module('cudf')
 
 import torch
 from torch import nn
@@ -96,13 +104,18 @@ class CloudDataset(Dataset):
         return files_list
 
     def open_image(self, idx: int, invert: bool = True, norm: bool = True):
-        image = imread(self.files[idx]['image'])
+        # image = imread(self.files[idx]['image'])
+        image = xp.load(self.files[idx]['image'], allow_pickle=False)
         image = image.transpose((2, 0, 1)) if invert else image
-        return (image / np.iinfo(image.dtype).max) if norm else image
+        image = (
+            image / xp.iinfo(image.dtype).max) if norm else image
+        return from_dlpack(image.toDlpack())  # .to(torch.float32)
 
     def open_mask(self, idx: int, add_dims: bool = False):
-        mask = imread(self.files[idx]['label'])
-        return np.expand_dims(mask, 0) if add_dims else mask
+        # mask = imread(self.files[idx]['label'])
+        mask = xp.load(self.files[idx]['label'], allow_pickle=False)
+        mask = xp.expand_dims(mask, 0) if add_dims else mask
+        return from_dlpack(mask.toDlpack())  # .to(torch.torch.int64)
 
 
 class Preprocess(Config):
@@ -114,28 +127,14 @@ class Preprocess(Config):
         """
         Preprocessing function.
         """
-        logging.info('Starting Preprocessing Step...')
+        # logging.info('Starting Preprocessing Step...')
         # iterate over each file and generate dataset
-        return list(map(self._preprocess, self.data_df.index))
+        # return list(map(self._preprocess, self.data_df.index))
+        self._preprocess()
 
     # -------------------------------------------------------------------------
     # Preprocess methods - Modify
     # -------------------------------------------------------------------------
-    def modify_bands(
-            self, img: xr.core.dataarray.DataArray, drop_bands: list = []):
-        """
-        Drop multiple bands to existing rasterio object
-        """
-        # Do not modify if image has the same number of output bands
-        if img.shape[0] == len(self.output_bands):
-            return img
-
-        # Drop any bands from input that should not be on output
-        for ind_id in list(set(self.input_bands) - set(self.output_bands)):
-            drop_bands.append(self.input_bands.index(ind_id)+1)
-        img = img.drop(dim="band", labels=drop_bands, drop=True)
-        return img
-
     def modify_roi(
             self, img: np.ndarray, mask: np.ndarray,
             ymin: int, ymax: int, xmin: int, xmax: int):
@@ -161,94 +160,57 @@ class Preprocess(Config):
         return mask
 
     # -------------------------------------------------------------------------
-    # IO methods - Modify
-    # -------------------------------------------------------------------------
-    def gen_random_tiles(
-            self, img: np.ndarray, mask: np.ndarray, n_tiles: int = 100):
-        """
-        Extract small patches for final dataset
-        Args:
-            img (numpy array - c, y, x): imagery data
-            tile_size (tuple): 2D dimensions of tile
-            random_state (int): seed for reproducibility (match image and mask)
-            n_patches (int): number of tiles to extract
-        """
-        tile_size = ((self.tile_size, ) * 2)
-        img = image.extract_patches_2d(
-            image=img, max_patches=n_tiles,
-            patch_size=tile_size, random_state=self.seed)
-        mask = image.extract_patches_2d(
-            image=mask, max_patches=n_tiles,
-            patch_size=tile_size, random_state=self.seed)
-        return img, mask
-
-    def gen_random_tiles_include(self):
-        raise NotImplementedError
-
-    # -------------------------------------------------------------------------
     # Core methods
     # -------------------------------------------------------------------------
-    def _preprocess(self, index: int):
+    def _preprocess(self):
 
-        logging.info(f'File #{index+1}: ' + self.data_df['data'][index])
+        # logging.info(f'File #{index+1}: ' + self.data_df['data'][index])
+        logging.info("Preparing dataset...")
+        images_list = sorted(glob(self.images_regex))
+        labels_list = sorted(glob(self.labels_regex))
 
-        # Get filename for output purposes
-        filename = self.data_df['data'][index].split('/')[-1]
+        for image, label in zip(images_list, labels_list):
 
-        # Read imagery from disk and process both image and mask
-        img = xr.open_rasterio(
-            self.data_df['data'][index], chunks=self.chunks).load()
-        mask = xr.open_rasterio(
-            self.data_df['label'][index], chunks=self.chunks).values
+            # Read imagery from disk and process both image and mask
+            filename = Path(image).stem
+            image = xr.open_rasterio(image, chunks=self.chunks).load()
+            label = xr.open_rasterio(label, chunks=self.chunks).values
 
-        logging.info(
-            f"File #{index+1}: {filename}, img:{img.shape} label:{mask.shape}")
+            # Modify bands if necessary - in a future version, add indices
+            image = preprocessing.modify_bands(
+                img=image, input_bands=self.input_bands,
+                output_bands=self.output_bands)
 
-        # lets modify bands if necessary - in a future version, add indices
-        img = self.modify_bands(img)
+            # Asarray option to force array type
+            image = xp.asarray(image.values)
+            label = xp.asarray(label)
 
-        # move from chw to hwc, squeze mask if required
-        img = np.moveaxis(img.values, 0, -1).astype(np.int16)
-        mask = np.squeeze(mask) if len(mask.shape) != 2 else mask
-        mask = mask - 1 if np.min(mask) == 1 else mask
+            # Move from chw to hwc, squeze mask if required
+            image = xp.moveaxis(image, 0, -1).astype(np.int16)
+            label = xp.squeeze(label) if len(label.shape) != 2 else label
+            logging.info(f'Label classes from image: {xp.unique(label)}')
 
-        print("mask unique", np.unique(mask))
+            # Generate dataset tiles
+            image_tiles, label_tiles = preprocessing.gen_random_tiles(
+                image=image, label=label, tile_size=self.tile_size,
+                max_patches=self.max_patches, seed=self.seed)
+            logging.info(f"Tiles: {image_tiles.shape}, {label_tiles.shape}")
 
-        # temporary
-        mask[mask == 14] = 5
-
-        # modify labels if needed
-        logging.info(f"Unique label classes: {np.unique(mask)}")
-        # if self.modify_labels:
-        #    mask = self.modify_label_classes(
-        #        mask, expressions=self.modify_labels)
-        # logging.info(f"Unique label classes after modify: {np.unique(mask)}")
-
-        # modify imagery boundaries
-        img = self.modify_pixel_extremity(
-            img, xmin=self.data_min, xmax=self.data_max)
-
-        # Get region of interest for training - TODO: automated retrieval
-        img, mask = self.modify_roi(
-            img, mask,
-            ymin=self.data_df['ymin'][index], ymax=self.data_df['ymax'][index],
-            xmin=self.data_df['xmin'][index], xmax=self.data_df['xmax'][index])
-        logging.info(f"Post preprocessing: {img.shape}, label: {mask.shape}")
-
-        # generate tiles arrays
-        img_tiles, mask_tiles = self.gen_random_tiles(
-            img, mask, n_tiles=self.data_df['ntiles'][index])
-        logging.info(f"After tiling: {img_tiles.shape}, {mask_tiles.shape}")
-
-        # save to disk
-        for id in range(img_tiles.shape[0]):
-            imsave(
-                os.path.join(self.images_dir, f'{filename[:-4]}_{id}.tif'),
-                img_tiles[id, :, :, :], planarconfig='contig')
-            imsave(
-                os.path.join(self.labels_dir, f'{filename[:-4]}_{id}.tif'),
-                mask_tiles[id, :, :], planarconfig='contig')
-        return index
+            # Save to disk
+            for id in range(image_tiles.shape[0]):
+                # imsave(
+                #    os.path.join(self.images_dir, f'{filename}_{id}.tif'),
+                #    image_tiles[id, :, :, :], planarconfig='contig')
+                # imsave(
+                #    os.path.join(self.labels_dir, f'{filename}_{id}.tif'),
+                #    label_tiles[id, :, :], planarconfig='contig')
+                xp.save(
+                    os.path.join(self.images_dir, f'{filename}_{id}.npy'),
+                    image_tiles[id, :, :, :])
+                xp.save(
+                    os.path.join(self.labels_dir, f'{filename}_{id}.npy'),
+                    label_tiles[id, :, :])
+        return
 
 
 class Train(Config):
@@ -290,7 +252,7 @@ class Train(Config):
 
         # Loss and Optimizer
         self.criterion = nn.CrossEntropyLoss().to(self.device)
-        #self.criterion = mIoULoss(n_classes=self.n_classes).to(self.device)
+        # self.criterion = mIoULoss(n_classes=self.n_classes).to(self.device)
         # self.criterion = FocalLoss().to(self.device)
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=0.0001)
         self.scheduler = torch.optim.lr_scheduler.StepLR(

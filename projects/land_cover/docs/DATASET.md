@@ -13,6 +13,17 @@ The training classes are as follow:
 5=grass
 ```
 
+North:
+
+```
+- 1 crop
+- 2 forest
+- 3 grass
+- 4 settlement
+- 5 shrub
+```
+
+
 The training images are:
 
 - Gonji_north_training_data_Prj_noHollow_naMerge_5class_codedFinal.tif: has the precense of 5 classes

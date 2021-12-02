@@ -88,8 +88,9 @@ class Config(object):
         self.std_mean_filename = os.path.join(
             self.dataset_dir, f'{self.experiment_name}_mean_std.npz')
 
-        # set logger
-        # self.set_logger(filename=self.log_file)
+        # new additions
+        # self.images_regex = os.path.join(self.dataset_dir, 'images')
+        # self.labels_regex = os.path.join(self.dataset_dir, 'labels')
 
     # -------------------------------------------------------------------------
     # Assert Methods

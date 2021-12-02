@@ -149,3 +149,9 @@ I also moved the previous one in this same directory. Let me know, if you have a
   - EDA Notebook with ADAPT data
   - Matching container
   - Random Forest Notebook
+
+
+singularity shell -B /att,/lscratch/jacaraba:/tmp,/lscratch,/adapt/nobackup/projects --nv /lscratch/jacaraba/container/nccs-lcluc
+
+python cnn_pipeline.py -c ../config/config.yaml -d ../config/ethiopia-land-cover-dataset-cnn-2021-10-22.csv -s preprocess
+
