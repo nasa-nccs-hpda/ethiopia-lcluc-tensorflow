@@ -2,7 +2,7 @@
 
 import os
 import sys
-import glob
+from glob import glob
 import logging
 from pathlib import Path
 
@@ -167,11 +167,9 @@ class Preprocess(Config):
         # logging.info(f'File #{index+1}: ' + self.data_df['data'][index])
         logging.info("Preparing dataset...")
 
-        # images_list = sorted(glob(self.images_regex))
-        # labels_list = sorted(glob(self.labels_regex))
-        print(glob(self.images_regex), glob(self.labels_regex))
+        images_list = sorted(glob(self.images_regex))
+        labels_list = sorted(glob(self.labels_regex))
 
-        """
         for image, label in zip(images_list, labels_list):
 
             # Read imagery from disk and process both image and mask
@@ -213,7 +211,6 @@ class Preprocess(Config):
                 xp.save(
                     os.path.join(self.labels_dir, f'{filename}_{id}.npy'),
                     label_tiles[id, :, :])
-        """
         return
 
 
