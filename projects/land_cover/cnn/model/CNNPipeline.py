@@ -166,6 +166,7 @@ class Preprocess(Config):
 
         # logging.info(f'File #{index+1}: ' + self.data_df['data'][index])
         logging.info("Preparing dataset...")
+        print(self.images_regex, self.labels_regex)
         images_list = sorted(glob(self.images_regex))
         labels_list = sorted(glob(self.labels_regex))
 
