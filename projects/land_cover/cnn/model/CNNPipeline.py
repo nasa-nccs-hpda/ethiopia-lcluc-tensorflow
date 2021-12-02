@@ -56,8 +56,8 @@ class CloudDataset(Dataset):
     def __getitem__(self, idx, augment: bool = True):
 
         # get data
-        x = torch.tensor(self.open_image(idx), dtype=torch.float32)
-        y = torch.tensor(self.open_mask(idx), dtype=torch.torch.int64)
+        x = self.open_image(idx).float()  # dtype=torch.float32)
+        y = self.open_mask(idx).long()  # , dtype=torch.torch.int64)
 
         # augment the data
         if augment:
