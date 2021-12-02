@@ -109,6 +109,7 @@ class CloudDataset(Dataset):
         image = xp.load(self.files[idx]['image'], allow_pickle=False)
         image = image.transpose((2, 0, 1)) if invert else image
         image = (image / xp.iinfo(image.dtype).max) if norm else image
+        print(image.shape)
         image = preprocessing.standardize_local(image) if std else image
         return from_dlpack(image.toDlpack()).float()
 
