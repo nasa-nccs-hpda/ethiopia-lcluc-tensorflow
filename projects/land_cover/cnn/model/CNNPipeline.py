@@ -167,6 +167,10 @@ class Preprocess(Config):
         # logging.info(f'File #{index+1}: ' + self.data_df['data'][index])
         logging.info("Preparing dataset...")
         print(self.images_regex, self.labels_regex)
+        images_list = glob(self.images_regex)
+        labels_list = glob(self.labels_regex)
+        print(images_list, labels_list)
+    """ 
         images_list = sorted(glob(self.images_regex))
         labels_list = sorted(glob(self.labels_regex))
 
@@ -211,6 +215,7 @@ class Preprocess(Config):
                 xp.save(
                     os.path.join(self.labels_dir, f'{filename}_{id}.npy'),
                     label_tiles[id, :, :])
+        """
         return
 
 
