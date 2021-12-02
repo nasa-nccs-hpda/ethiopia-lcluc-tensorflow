@@ -36,11 +36,12 @@ from scipy.ndimage import median_filter, binary_fill_holes
 
 class CloudDataset(Dataset):
 
-    def __init__(self, dataset_dir, pytorch=True):
+    def __init__(self, dataset_dir, pytorch=True, augment=True):
 
         super().__init__()
 
         self.files = self.list_files(dataset_dir)
+        self.augment = augment
         self.pytorch = pytorch
 
     # -------------------------------------------------------------------------
@@ -56,33 +57,37 @@ class CloudDataset(Dataset):
     def __getitem__(self, idx, augment: bool = True):
 
         # get data
-        x = self.open_image(idx).float()  # dtype=torch.float32)
-        y = self.open_mask(idx).long()  # , dtype=torch.torch.int64)
+        x = self.open_image(idx)
+        y = self.open_mask(idx)
 
         # augment the data
-        if augment:
+        if self.augment:
 
-            if np.random.random_sample() > 0.5:  # flip left and right
-                x = torch.fliplr(x)
-                y = torch.fliplr(y)
-            if np.random.random_sample() > 0.5:  # reverse second dimension
-                x = torch.flipud(x)
-                y = torch.flipud(y)
-            if np.random.random_sample() > 0.5:  # rotate 90 degrees
-                x = torch.rot90(x, k=1, dims=[1, 2])
-                y = torch.rot90(y, k=1, dims=[0, 1])
-            if np.random.random_sample() > 0.5:  # rotate 180 degrees
-                x = torch.rot90(x, k=2, dims=[1, 2])
-                y = torch.rot90(y, k=2, dims=[0, 1])
-            if np.random.random_sample() > 0.5:  # rotate 270 degrees
-                x = torch.rot90(x, k=3, dims=[1, 2])
-                y = torch.rot90(y, k=3, dims=[0, 1])
+            if xp.random.random_sample() > 0.5:  # flip left and right
+                x = xp.fliplr(x)
+                y = xp.fliplr(y)
+            if xp.random.random_sample() > 0.5:  # reverse second dimension
+                x = xp.flipud(x)
+                y = xp.flipud(y)
+            if xp.random.random_sample() > 0.5:  # rotate 90 degrees
+                x = xp.rot90(x, k=1, dims=[1, 2])
+                y = xp.rot90(y, k=1, dims=[0, 1])
+            if xp.random.random_sample() > 0.5:  # rotate 180 degrees
+                x = xp.rot90(x, k=2, dims=[1, 2])
+                y = xp.rot90(y, k=2, dims=[0, 1])
+            if xp.random.random_sample() > 0.5:  # rotate 270 degrees
+                x = xp.rot90(x, k=3, dims=[1, 2])
+                y = xp.rot90(y, k=3, dims=[0, 1])
 
         # standardize 0.70, 0.30
         # if np.random.random_sample() > 0.70:
-        #    image = preprocess.standardizeLocalCalcTensor(image, means, stds)
+        #    image = preprocessing.standardizeLocalCalcTensor(
+        # image, means, stds)
         # else:
-        #    image = preprocess.standardizeGlobalCalcTensor(image)
+
+        # x = preprocessing.standardize_global(x)
+        x = from_dlpack(x.toDlpack()).float()
+        y = from_dlpack(y.toDlpack()).long()
 
         return x, y
 
@@ -104,18 +109,15 @@ class CloudDataset(Dataset):
         return files_list
 
     def open_image(self, idx: int, invert: bool = True, norm: bool = True):
-        # image = imread(self.files[idx]['image'])
         image = xp.load(self.files[idx]['image'], allow_pickle=False)
         image = image.transpose((2, 0, 1)) if invert else image
-        image = (
-            image / xp.iinfo(image.dtype).max) if norm else image
-        return from_dlpack(image.toDlpack())  # .to(torch.float32)
+        image = (image / xp.iinfo(image.dtype).max) if norm else image
+        return image
 
     def open_mask(self, idx: int, add_dims: bool = False):
-        # mask = imread(self.files[idx]['label'])
         mask = xp.load(self.files[idx]['label'], allow_pickle=False)
         mask = xp.expand_dims(mask, 0) if add_dims else mask
-        return from_dlpack(mask.toDlpack())  # .to(torch.torch.int64)
+        return mask
 
 
 class Preprocess(Config):
@@ -249,7 +251,7 @@ class Train(Config):
         self.train_dl = DataLoader(
             train_ds, batch_size=self.batch_size, shuffle=True)
         self.val_dl = DataLoader(
-            val_ds, batch_size=self.batch_size, shuffle=True)
+            val_ds, batch_size=self.batch_size, shuffle=False)
 
         # Loss and Optimizer
         self.criterion = nn.CrossEntropyLoss().to(self.device)
