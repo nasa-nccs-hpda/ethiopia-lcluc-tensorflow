@@ -365,7 +365,7 @@ class Predict(Preprocess):
         try:
             self.model_filename
         except AttributeError:
-            models_list = glob.glob(os.path.join(self.model_dir, '*.pt'))
+            models_list = glob(os.path.join(self.model_dir, '*.pt'))
             self.model_filename = max(models_list, key=os.path.getctime)
         logging.info(f'Loading {self.model_filename}')
 
