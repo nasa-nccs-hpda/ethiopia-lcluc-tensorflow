@@ -416,14 +416,15 @@ class Predict(Preprocess):
             #### SOMETHING HERE IS SLOW
 
             # lets modify bands if necessary - in a future version, add indices
-            img = self.modify_bands(img)
+            img = preprocessing.modify_bands(
+                img=img, input_bands=self.input_bands,
+                output_bands=self.output_bands)
 
             # move from chw to hwc, squeze mask if required
             img = np.moveaxis(img.values, 0, -1).astype(np.int16)
 
             # preprocess here - normalization
             img = (img / np.iinfo(img.dtype).max)
-            img = preprocessing.standardize_local(img)
 
             # modify imagery boundaries
             # img = self.modify_pixel_extremity(
@@ -442,6 +443,7 @@ class Predict(Preprocess):
             tiles = list()
             for tile in tiler.split(img):
                 image = np.moveaxis(tile, -1, 0)
+                image = preprocessing.standardize_local(image)
                 image = np.ascontiguousarray(image)
                 tiles.append(torch.from_numpy(image).float())
 
