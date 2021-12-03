@@ -254,7 +254,7 @@ class Train(Config):
 
         # self.optimizer = torch.optim.Adam(self.model.parameters(), lr=0.0001)
         # self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=0.0001)
-        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=0.0001)
+        self.optimizer = torch.optim.Adadelta(self.model.parameters(), lr=0.0001)
 
 
         self.scheduler = torch.optim.lr_scheduler.StepLR(
