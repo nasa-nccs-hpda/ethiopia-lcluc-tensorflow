@@ -195,9 +195,15 @@ class Preprocess(Config):
             # label[label > 1] = 0
 
             # UNIQUE FOR CLASS-2 CLASSIFICATION
-            label[label > 2] = 0
+            #label[label > 2] = 0
+            #label[label == 1] = 0
+            #label[label == 2] = 1
+
+            # UNIQUE FOR CLASS-3 CLASSIFICATION
+            label[label > 3] = 0
             label[label == 1] = 0
-            label[label == 2] = 1
+            label[label == 2] = 0
+            label[label == 3] = 1
 
             if not np.any(label == 1):
                 continue

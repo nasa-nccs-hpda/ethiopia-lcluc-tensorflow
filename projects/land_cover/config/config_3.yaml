@@ -1,0 +1,127 @@
+#-----------------------------------------------------------------------
+# Configuration File for Senegal Cloud Mask
+#-----------------------------------------------------------------------
+experiment_name: '2021-12-01-class3'
+# experiment_name: '2021-10-20-crossentropy'
+# experiment_name: '2021-10-20-focal'
+
+#-----------------------------------------------------------------------
+# System Acceleration Parameters
+#-----------------------------------------------------------------------
+seed: 22
+cuda_devices: 0,1,2,3
+mixed_precision: True
+
+images_regex: '/adapt/nobackup/projects/ilab/projects/Ethiopia/LCLUC_Ethiopia/data/images/*.tif'
+labels_regex: '/adapt/nobackup/projects/ilab/projects/Ethiopia/LCLUC_Ethiopia/data/labels/*.tif'
+max_patches: 2.0
+
+#-----------------------------------------------------------------------
+# General Parameters
+#-----------------------------------------------------------------------
+# PRISM testing
+data_output_dir: '/lscratch/jacaraba/ethiopia_class3'
+
+#model_filename: '/lscratch/jacaraba/ethiopia_v2/model/unet_epoch-2021-12-01-adadelta_220_0.94257.pt'
+inference_output_dir: '/adapt/nobackup/projects/ilab/projects/Ethiopia/LCLUC_Ethiopia/cnn_class3'
+data_predict: '/adapt/nobackup/projects/ilab/projects/Ethiopia/LCLUC_Ethiopia/data/images/*.tif'
+
+#-----------------------------------------------------------------------
+# Data Parameters
+#-----------------------------------------------------------------------
+# data raster bands
+input_bands:
+  - CoastalBlue
+  - Blue
+  - Green
+  - Yellow
+  - Red
+  - RedEdge
+  - NIR1
+  - NIR2
+
+# local testing
+output_bandsz: 
+  - Blue
+  - Green
+  - Red
+
+output_bandszz: 
+  - CoastalBlue
+  - Blue
+  - Green
+  - Yellow
+  - Red
+  - RedEdge
+  - NIR1
+  - NIR2
+
+output_bands: 
+  - Blue
+  - Green
+  - Red
+  - NIR1
+
+# data imagery boundaries
+data_min: 0
+data_max: 10000
+
+# modify any labels in case masks need modification
+modify_labels:
+  - "x != 1": 0
+
+#-----------------------------------------------------------------------
+# Model Parameters
+# Note: 2 classes for binary problems
+#-----------------------------------------------------------------------
+tile_size: 256
+n_classes: 2
+
+test_size: 0.20
+batch_size: 128
+
+max_epoch: 6000
+initial_epoch: 0
+
+network: unet
+optimizer: RectifiedAdam
+lr: 0.0001
+loss: binary_crossentropy
+
+#-----------------------------------------------------------------------
+# Metrics & Callbacks
+#-----------------------------------------------------------------------
+metrics:
+  - accuracy
+  - iou
+
+callbacks:
+  - ModelCheckpoint
+  - EarlyStopping
+  - CSVLogger
+  #- TensorBoard
+
+# ModelCheckpoint Callback
+checkpoint_metric: val_accuracy
+checkpoint_mode: max
+checkpoint_bestonly: True
+
+# EarlyStopping Callback
+earlystop_metric: val_loss
+earlystop_patience: 5
+
+#-----------------------------------------------------------------------
+# System Acceleration Parameters
+#-----------------------------------------------------------------------
+# Tiles to process
+# (ai-lcluc) [jacaraba@gpu021 data]$ ls /att/nobackup/mwooten3/Senegal_LCLUC/VHR/priority-tiles/
+# Aki-tiles-ETZ  eCasamance_stereo  kassassa_M1BS-8band  Konrad-tiles
+overlap: 128
+pred_batch_size: 128
+#data_predict: '/att/nobackup/mwooten3/Senegal_LCLUC/VHR/priority-tiles/Aki-tiles-ETZ/M1BS/*.tif'
+# data_predict: '/att/nobackup/mwooten3/Senegal_LCLUC/VHR/priority-tiles/kassassa_M1BS-8band/*.tif'
+# data_predict: '/att/nobackup/mcarrol2/LCLUC_Senegal/ForKonrad/*_data.tif'
+#inference_output_dir: '/att/gpfsfs/atrepo01/ILAB/projects/Senegal/LCLUC_Senegal_Cloud/cloud_masks/kassassa_M1BS-8band'
+
+
+#/att/gpfsfs/atrepo01/ILAB/containers/nccs-lcluc
