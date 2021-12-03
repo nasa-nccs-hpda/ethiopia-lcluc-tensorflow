@@ -488,7 +488,7 @@ class Predict(Preprocess):
             merged_mask = np.squeeze(merged_mask, axis=-1)
             print("UNIQUE IN MASK: ", np.unique(merged_mask))
 
-            self.arr_to_tif(filename, merged_mask, raster_name, ndval=-9999)
+            self.arr_to_tif(filename, merged_mask, raster_name, ndval=-10001)
             logging.info(f'Saved Filename: {raster_name}')
 
         # This is the case where the prediction was already saved
