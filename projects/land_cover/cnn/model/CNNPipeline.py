@@ -199,6 +199,9 @@ class Preprocess(Config):
             label[label == 1] = 0
             label[label == 2] = 1
 
+            if not np.any(label == 1):
+                pass
+
             logging.info(f'Label classes from image: {xp.unique(label)}')
 
             # Generate dataset tiles
