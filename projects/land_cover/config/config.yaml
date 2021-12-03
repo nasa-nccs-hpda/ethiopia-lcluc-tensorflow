@@ -1,7 +1,7 @@
 #-----------------------------------------------------------------------
 # Configuration File for Senegal Cloud Mask
 #-----------------------------------------------------------------------
-experiment_name: '2021-12-01-adamw'
+experiment_name: '2021-12-01-sgd'
 # experiment_name: '2021-10-20-crossentropy'
 # experiment_name: '2021-10-20-focal'
 
