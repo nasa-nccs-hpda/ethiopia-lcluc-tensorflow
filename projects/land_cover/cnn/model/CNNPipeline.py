@@ -380,7 +380,7 @@ class Predict(Preprocess):
         self.model.eval()
 
         # get data for prediction
-        self.data_predict = glob.glob(self.data_predict)
+        self.data_predict = glob(self.data_predict)
         # /Senegal_LCLUC/VHR/priority-tiles/Aki-tiles-ETZ/M1BS/WV02_20170922_M1BS_10300100719C2D00-toa.tif']
         # self.data_predict = ['/Users/jacaraba/Desktop/CURRENT_PROJECTS/LCLUC_Senegal_Cloud/zach_labels/WV02_20170922_M1BS_10300100719C2D00_Aki_CLIPPED.tif']
         # self.data_predict = ['/att/nobackup/mwooten3/Senegal_LCLUC/VHR/priority-tiles/Aki-tiles-ETZ/M1BS/WV03_20200214_M1BS_1040010057108200-toa.tif']
