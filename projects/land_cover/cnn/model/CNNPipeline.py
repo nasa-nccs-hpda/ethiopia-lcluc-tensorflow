@@ -189,13 +189,14 @@ class Preprocess(Config):
             # Move from chw to hwc, squeze mask if required
             image = xp.moveaxis(image, 0, -1).astype(np.int16)
             label = xp.squeeze(label) if len(label.shape) != 2 else label
-            logging.info(f'Label classes from image: {xp.unique(label)}')
+            # logging.info(f'Label classes from image: {xp.unique(label)}')
 
             # Generate dataset tiles
             image_tiles, label_tiles = preprocessing.gen_random_tiles(
                 image=image, label=label, tile_size=self.tile_size,
                 max_patches=self.max_patches, seed=self.seed)
             logging.info(f"Tiles: {image_tiles.shape}, {label_tiles.shape}")
+            print(xp.unique(label_tiles))
 
             # Save to disk
             for id in range(image_tiles.shape[0]):
@@ -246,10 +247,10 @@ class Train(Config):
             val_ds, batch_size=self.batch_size, shuffle=False)
 
         # Loss and Optimizer
-        # self.criterion = nn.CrossEntropyLoss().to(self.device)
+        self.criterion = nn.CrossEntropyLoss().to(self.device)
         # self.criterion = mIoULoss(n_classes=self.n_classes).to(self.device)
         # self.criterion = FocalLoss().to(self.device)
-        self.criterion = nn.CrossEntropyLoss(ignore_index=0).to(self.device)
+        # self.criterion = nn.CrossEntropyLoss(ignore_index=0).to(self.device)
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=0.0001)
         self.scheduler = torch.optim.lr_scheduler.StepLR(
             self.optimizer, step_size=1, gamma=0.5)
