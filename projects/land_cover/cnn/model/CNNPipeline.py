@@ -252,8 +252,8 @@ class Train(Config):
             val_ds, batch_size=self.batch_size, shuffle=False)
 
         # Loss and Optimizer
-        self.criterion = nn.CrossEntropyLoss().to(self.device)
-        # self.criterion = mIoULoss(n_classes=self.n_classes).to(self.device)
+        # self.criterion = nn.CrossEntropyLoss().to(self.device)
+        self.criterion = mIoULoss(n_classes=self.n_classes).to(self.device)
         # self.criterion = FocalLoss().to(self.device)
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=0.0001)
         self.scheduler = torch.optim.lr_scheduler.StepLR(
@@ -424,7 +424,6 @@ class Predict(Preprocess):
             img = np.moveaxis(img.values, 0, -1).astype(np.int16)
 
             # preprocess here - normalization
-            img = (img / np.iinfo(img.dtype).max)
 
             # modify imagery boundaries
             # img = self.modify_pixel_extremity(
@@ -443,6 +442,7 @@ class Predict(Preprocess):
             tiles = list()
             for tile in tiler.split(img):
                 image = np.moveaxis(tile, -1, 0)
+                img = (img / np.iinfo(img.dtype).max)
                 image = preprocessing.standardize_local(image)
                 image = np.ascontiguousarray(image)
                 tiles.append(torch.from_numpy(image).float())
@@ -467,22 +467,9 @@ class Predict(Preprocess):
             # Normalize accumulated mask and convert back to numpy
             merged_mask = np.moveaxis(
                 to_numpy(merger.merge()), 0, -1).astype(np.uint8)
+            print("UNIQUE IN MASK: ", np.unique(merged_mask))
             merged_mask = tiler.crop_to_orignal_size(merged_mask)
             merged_mask = np.squeeze(merged_mask, axis=-1)
-
-            # post-processing
-            # kernel = np.ones((64, 64), np.uint8)
-            # merged_mask = cv2.morphologyEx(merged_mask, cv2.MORPH_OPEN, kernel)  # opening
-            # merged_mask = cv2.morphologyEx(merged_mask, cv2.MORPH_CLOSE, kernel)  # closing
-            # merged_mask = cv2.dilate(merged_mask, kernel, iterations = 1)  # dilation
-            # merged_mask = cv2.medianBlur(merged_mask, 25)
-            #merged_mask = median_filter(merged_mask, size=25)
-            #merged_mask = self._binary_fill(merged_mask)
-
-            # dilation = cv2.dilate(img,kernel,iterations = 1)
-            # merged_mask = self._grow(merged_mask)
-            # merged_mask = self._denoise(merged_mask)
-            # merged_mask = self._binary_fill(merged_mask)
 
             self.arr_to_tif(filename, merged_mask, raster_name, ndval=-9999)
             logging.info(f'Saved Filename: {raster_name}')
