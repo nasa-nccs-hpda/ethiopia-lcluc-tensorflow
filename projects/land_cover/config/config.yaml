@@ -1,7 +1,7 @@
 #-----------------------------------------------------------------------
 # Configuration File for Senegal Cloud Mask
 #-----------------------------------------------------------------------
-experiment_name: '2021-12-01'
+experiment_name: '2021-12-01-adamw'
 # experiment_name: '2021-10-20-crossentropy'
 # experiment_name: '2021-10-20-focal'
 
@@ -23,7 +23,7 @@ max_patches: 2.0
 data_output_dir: '/lscratch/jacaraba/ethiopia_v2'
 
 #model_filename: '/att/gpfsfs/atrepo01/ILAB/projects/Senegal/LCLUC_Senegal_Cloud/senegal_cloud_v3/model/unet_epoch_iou_406_0.50434.pt'
-inference_output_dir: '/adapt/nobackup/projects/ilab/projects/Ethiopia/LCLUC_Ethiopia/cnn_v2'
+inference_output_dir: '/adapt/nobackup/projects/ilab/projects/Ethiopia/LCLUC_Ethiopia/cnn_v3'
 data_predict: '/adapt/nobackup/projects/ilab/projects/Ethiopia/LCLUC_Ethiopia/data/images/*.tif'
 
 #-----------------------------------------------------------------------
@@ -116,7 +116,7 @@ earlystop_patience: 5
 # Tiles to process
 # (ai-lcluc) [jacaraba@gpu021 data]$ ls /att/nobackup/mwooten3/Senegal_LCLUC/VHR/priority-tiles/
 # Aki-tiles-ETZ  eCasamance_stereo  kassassa_M1BS-8band  Konrad-tiles
-overlap: 200
+overlap: 128
 pred_batch_size: 128
 #data_predict: '/att/nobackup/mwooten3/Senegal_LCLUC/VHR/priority-tiles/Aki-tiles-ETZ/M1BS/*.tif'
 # data_predict: '/att/nobackup/mwooten3/Senegal_LCLUC/VHR/priority-tiles/kassassa_M1BS-8band/*.tif'
