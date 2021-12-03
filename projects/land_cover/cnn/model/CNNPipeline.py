@@ -425,6 +425,7 @@ class Predict(Preprocess):
             img = np.moveaxis(img.values, 0, -1).astype(np.int16)
 
             # preprocess here - normalization
+            img = (img / np.iinfo(img.dtype).max)
 
             # modify imagery boundaries
             # img = self.modify_pixel_extremity(
@@ -443,7 +444,6 @@ class Predict(Preprocess):
             tiles = list()
             for tile in tiler.split(img):
                 image = np.moveaxis(tile, -1, 0)
-                img = (img / np.iinfo(img.dtype).max)
                 image = preprocessing.standardize_local(image)
                 image = np.ascontiguousarray(image)
                 tiles.append(torch.from_numpy(image).float())
