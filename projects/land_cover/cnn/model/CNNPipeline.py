@@ -200,7 +200,7 @@ class Preprocess(Config):
             label[label == 2] = 1
 
             if not np.any(label == 1):
-                pass
+                continue
 
             logging.info(f'Label classes from image: {xp.unique(label)}')
 
