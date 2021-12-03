@@ -22,7 +22,7 @@ max_patches: 2.0
 # PRISM testing
 data_output_dir: '/lscratch/jacaraba/ethiopia_v2'
 
-#model_filename: '/att/gpfsfs/atrepo01/ILAB/projects/Senegal/LCLUC_Senegal_Cloud/senegal_cloud_v3/model/unet_epoch_iou_406_0.50434.pt'
+model_filename: '/lscratch/jacaraba/ethiopia_v2/model/unet_epoch-2021-12-01-adadelta_220_0.94257.pt'
 inference_output_dir: '/adapt/nobackup/projects/ilab/projects/Ethiopia/LCLUC_Ethiopia/cnn_v4'
 data_predict: '/adapt/nobackup/projects/ilab/projects/Ethiopia/LCLUC_Ethiopia/data/images/*.tif'
 
