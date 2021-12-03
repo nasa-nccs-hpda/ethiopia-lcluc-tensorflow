@@ -46,7 +46,7 @@ output_bandsz:
   - Green
   - Red
 
-output_bands: 
+output_bandszz: 
   - CoastalBlue
   - Blue
   - Green
@@ -55,6 +55,12 @@ output_bands:
   - RedEdge
   - NIR1
   - NIR2
+
+output_bands: 
+  - Blue
+  - Green
+  - Red
+  - NIR1
 
 # data imagery boundaries
 data_min: 0
