@@ -446,6 +446,7 @@ class Predict(Preprocess):
                 image = preprocessing.standardize_local(image)
                 image = np.ascontiguousarray(image)
                 tiles.append(torch.from_numpy(image).float())
+            print("finished tiler")
 
             # Allocate a CUDA buffer for holding entire mask
             merger = TileMerger(tiler.target_shape, 1, tiler.weight)
