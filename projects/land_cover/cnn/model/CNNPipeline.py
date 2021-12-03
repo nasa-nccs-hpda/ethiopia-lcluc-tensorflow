@@ -253,8 +253,9 @@ class Train(Config):
 
         # Loss and Optimizer
         # self.criterion = nn.CrossEntropyLoss().to(self.device)
-        self.criterion = mIoULoss(n_classes=self.n_classes).to(self.device)
+        # self.criterion = mIoULoss(n_classes=self.n_classes).to(self.device)
         # self.criterion = FocalLoss().to(self.device)
+        self.criterion = nn.CrossEntropyLoss(ignore_index=0).to(self.device)
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=0.0001)
         self.scheduler = torch.optim.lr_scheduler.StepLR(
             self.optimizer, step_size=1, gamma=0.5)
