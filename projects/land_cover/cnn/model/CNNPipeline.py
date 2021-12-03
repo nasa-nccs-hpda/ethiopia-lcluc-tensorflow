@@ -104,7 +104,7 @@ class CloudDataset(Dataset):
         return files_list
 
     def open_image(
-            self, idx: int, invert: bool = True, norm: bool = True,
+            self, idx: int, invert: bool = True, norm: bool = False,
             std: bool = True):
         image = xp.load(self.files[idx]['image'], allow_pickle=False)
         image = image.transpose((2, 0, 1)) if invert else image
@@ -199,12 +199,6 @@ class Preprocess(Config):
 
             # Save to disk
             for id in range(image_tiles.shape[0]):
-                # imsave(
-                #    os.path.join(self.images_dir, f'{filename}_{id}.tif'),
-                #    image_tiles[id, :, :, :], planarconfig='contig')
-                # imsave(
-                #    os.path.join(self.labels_dir, f'{filename}_{id}.tif'),
-                #    label_tiles[id, :, :], planarconfig='contig')
                 xp.save(
                     os.path.join(self.images_dir, f'{filename}_{id}.npy'),
                     image_tiles[id, :, :, :])
@@ -425,7 +419,7 @@ class Predict(Preprocess):
             img = np.moveaxis(img.values, 0, -1).astype(np.int16)
 
             # preprocess here - normalization
-            img = (img / np.iinfo(img.dtype).max)
+            # img = (img / np.iinfo(img.dtype).max)
 
             # modify imagery boundaries
             # img = self.modify_pixel_extremity(
