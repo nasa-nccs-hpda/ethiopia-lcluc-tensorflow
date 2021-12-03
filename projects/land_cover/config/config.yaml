@@ -116,7 +116,7 @@ earlystop_patience: 5
 # Tiles to process
 # (ai-lcluc) [jacaraba@gpu021 data]$ ls /att/nobackup/mwooten3/Senegal_LCLUC/VHR/priority-tiles/
 # Aki-tiles-ETZ  eCasamance_stereo  kassassa_M1BS-8band  Konrad-tiles
-overlap: 180
+overlap: 200
 pred_batch_size: 128
 #data_predict: '/att/nobackup/mwooten3/Senegal_LCLUC/VHR/priority-tiles/Aki-tiles-ETZ/M1BS/*.tif'
 # data_predict: '/att/nobackup/mwooten3/Senegal_LCLUC/VHR/priority-tiles/kassassa_M1BS-8band/*.tif'
