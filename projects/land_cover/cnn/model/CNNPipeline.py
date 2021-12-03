@@ -104,8 +104,8 @@ class CloudDataset(Dataset):
         return files_list
 
     def open_image(
-            self, idx: int, invert: bool = True, norm: bool = False,
-            std: bool = True):
+            self, idx: int, invert: bool = True, norm: bool = True,
+            std: bool = False):
         image = xp.load(self.files[idx]['image'], allow_pickle=False)
         image = image.transpose((2, 0, 1)) if invert else image
         image = (image / xp.iinfo(image.dtype).max) if norm else image
