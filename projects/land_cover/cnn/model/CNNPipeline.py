@@ -192,7 +192,13 @@ class Preprocess(Config):
             # logging.info(f'Label classes from image: {xp.unique(label)}')
 
             # UNIQUE FOR CLASS-1 CLASSIFICATION
-            label[label > 1] = 0
+            # label[label > 1] = 0
+
+            # UNIQUE FOR CLASS-2 CLASSIFICATION
+            label[label > 2] = 0
+            label[label == 1] = 0
+            label[label == 2] = 1
+
             logging.info(f'Label classes from image: {xp.unique(label)}')
 
             # Generate dataset tiles
