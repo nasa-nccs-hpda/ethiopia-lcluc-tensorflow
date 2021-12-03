@@ -462,7 +462,7 @@ class Predict(Preprocess):
 
             # Normalize accumulated mask and convert back to numpy
             merged_mask = np.moveaxis(
-                to_numpy(merger.merge()), 0, -1) # .astype(np.uint8)
+                to_numpy(merger.merge()), 0, -1).astype(np.uint8)
             print("UNIQUE IN MASK: ", np.unique(merged_mask))
             merged_mask = tiler.crop_to_orignal_size(merged_mask)
             merged_mask = np.squeeze(merged_mask, axis=-1)
