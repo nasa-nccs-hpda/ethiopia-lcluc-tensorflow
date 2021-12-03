@@ -191,6 +191,10 @@ class Preprocess(Config):
             label = xp.squeeze(label) if len(label.shape) != 2 else label
             # logging.info(f'Label classes from image: {xp.unique(label)}')
 
+            # UNIQUE FOR CLASS-1 CLASSIFICATION
+            label[label > 1] = 0
+            logging.info(f'Label classes from image: {xp.unique(label)}')
+
             # Generate dataset tiles
             image_tiles, label_tiles = preprocessing.gen_random_tiles(
                 image=image, label=label, tile_size=self.tile_size,
@@ -252,9 +256,9 @@ class Train(Config):
         # self.criterion = FocalLoss().to(self.device)
         # self.criterion = nn.CrossEntropyLoss(ignore_index=0).to(self.device)
 
-        # self.optimizer = torch.optim.Adam(self.model.parameters(), lr=0.0001)
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=0.0001)
         # self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=0.0001)
-        self.optimizer = torch.optim.Adadelta(self.model.parameters(), lr=0.0001)
+        # self.optimizer = torch.optim.Adadelta(self.model.parameters(), lr=0.0001)
 
 
         self.scheduler = torch.optim.lr_scheduler.StepLR(
