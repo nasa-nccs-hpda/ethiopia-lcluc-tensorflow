@@ -14,7 +14,7 @@ mixed_precision: True
 
 images_regex: '/adapt/nobackup/projects/ilab/projects/Ethiopia/LCLUC_Ethiopia/data/images/*.tif'
 labels_regex: '/adapt/nobackup/projects/ilab/projects/Ethiopia/LCLUC_Ethiopia/data/labels/*.tif'
-max_patches: 2.0
+max_patches: 10.0
 
 #-----------------------------------------------------------------------
 # General Parameters
