@@ -423,10 +423,11 @@ class Predict(Preprocess):
 
             # preprocess here - normalization
             img = (img / np.iinfo(img.dtype).max)
+            img = preprocessing.standardize_local(img)
 
             # modify imagery boundaries
-            img = self.modify_pixel_extremity(
-                img, xmin=self.data_min, xmax=self.data_max)
+            # img = self.modify_pixel_extremity(
+            #    img, xmin=self.data_min, xmax=self.data_max)
 
             #### SOMETHING HERE IS SLOW
 
