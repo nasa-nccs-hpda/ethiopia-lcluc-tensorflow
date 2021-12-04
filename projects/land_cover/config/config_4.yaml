@@ -22,7 +22,7 @@ max_patches: 2.0
 # PRISM testing
 data_output_dir: '/lscratch/jacaraba/ethiopia_class4'
 
-#model_filename: '/lscratch/jacaraba/ethiopia_v2/model/unet_epoch-2021-12-01-adadelta_220_0.94257.pt'
+model_filename: '/adapt/nobackup/projects/ilab/projects/Ethiopia/LCLUC_Ethiopia/models/unet_epoch-2021-12-01-class4_53_0.28827.pt'
 inference_output_dir: '/adapt/nobackup/projects/ilab/projects/Ethiopia/LCLUC_Ethiopia/cnn_class4'
 #data_predict: '/adapt/nobackup/projects/ilab/projects/Ethiopia/LCLUC_Ethiopia/data/images/*.tif'
 #data_predict: '/att/gpfsfs/briskfs01/ppl/walemu/NASA_NPP/CRPld_Map_Pred_and_Forec/EVHR/Gonji/M1BS/*.tif'
