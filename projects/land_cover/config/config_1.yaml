@@ -24,7 +24,8 @@ data_output_dir: '/lscratch/jacaraba/ethiopia_class1'
 
 #model_filename: '/lscratch/jacaraba/ethiopia_v2/model/unet_epoch-2021-12-01-adadelta_220_0.94257.pt'
 inference_output_dir: '/adapt/nobackup/projects/ilab/projects/Ethiopia/LCLUC_Ethiopia/cnn_class1'
-data_predict: '/adapt/nobackup/projects/ilab/projects/Ethiopia/LCLUC_Ethiopia/data/images/*.tif'
+#data_predict: '/adapt/nobackup/projects/ilab/projects/Ethiopia/LCLUC_Ethiopia/data/images/*.tif'
+data_predict: '/att/gpfsfs/briskfs01/ppl/walemu/NASA_NPP/CRPld_Map_Pred_and_Forec/EVHR/Gonji/M1BS/*.tif'
 
 #-----------------------------------------------------------------------
 # Data Parameters

@@ -33,6 +33,7 @@ from .Loss import FocalLoss, mIoULoss
 
 import cv2
 from scipy.ndimage import median_filter, binary_fill_holes
+from cupyx.scipy.ndimage import median_filter
 
 class CloudDataset(Dataset):
 
@@ -507,6 +508,8 @@ class Predict(Preprocess):
             merged_mask = tiler.crop_to_orignal_size(merged_mask)
             merged_mask = np.squeeze(merged_mask, axis=-1)
             print("UNIQUE IN MASK: ", np.unique(merged_mask))
+
+            merged_mask = median_filter(merged_mask, size=25)
 
             self.arr_to_tif(filename, merged_mask, raster_name, ndval=-10001)
             logging.info(f'Saved Filename: {raster_name}')
