@@ -213,14 +213,14 @@ class Preprocess(Config):
             #label[label == 5] = 0
 
             # UNIQUE FOR CLASS-4 CLASSIFICATION
-            label[label == 1] = 0
-            label[label == 2] = 0
-            label[label == 3] = 0
-            label[label == 4] = 0
-            label[label == 5] = 1
+            #label[label == 1] = 0
+            #label[label == 2] = 0
+            #label[label == 3] = 0
+            #label[label == 4] = 0
+            #label[label == 5] = 1
 
-            if not np.any(label == 1):
-                continue
+            #if not np.any(label == 1):
+            #    continue
 
             logging.info(f'Label classes from image: {xp.unique(label)}')
 
