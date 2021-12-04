@@ -509,7 +509,8 @@ class Predict(Preprocess):
             merged_mask = np.squeeze(merged_mask, axis=-1)
             print("UNIQUE IN MASK: ", np.unique(merged_mask))
 
-            merged_mask = median_filter(merged_mask, size=25)
+            merged_mask = median_filter(xp.asarray(merged_mask), size=25)
+            merged_mask = xp.asnumpy(merged_mask)
 
             self.arr_to_tif(filename, merged_mask, raster_name, ndval=-10001)
             logging.info(f'Saved Filename: {raster_name}')
