@@ -83,6 +83,44 @@ def predict(data, model, ws=[5120, 5120]):
     return prediction.astype('int16')  # type to int16
 
 
+def arr_to_tif(raster_f, segments, out_tif='s.tif', ndval=-10001):
+    """
+    Save array into GeoTIF file.
+    Args:
+        raster_f (str): input data filename
+        segments (numpy.array): array with values
+        out_tif (str): output filename
+        ndval (int): no data value
+    Return:
+        save GeoTif to local disk
+    ----------
+    Example
+    ----------
+        arr_to_tif('inp.tif', segments, 'out.tif', ndval=-9999)
+    """
+    # get geospatial profile, will apply for output file
+    with rio.open(raster_f) as src:
+        meta = src.profile
+        nodatavals = src.read_masks(1).astype('int16')
+        meta['nodata'] = ndval
+
+    # load numpy array if file is given
+    if type(segments) == str:
+        segments = np.load(segments)
+    segments = segments.astype('int16')
+
+    nodatavals[nodatavals == 0] = ndval
+    segments[nodatavals == ndval] = nodatavals[nodatavals == ndval]
+
+    out_meta = meta  # modify profile based on numpy array
+    out_meta['count'] = 1  # output is single band
+    out_meta['dtype'] = 'int16'  # data type is float64
+
+    # write to a raster
+    with rio.open(out_tif, 'w', **out_meta) as dst:
+        dst.write(segments, 1)
+
+
 def to_cog(
         input_array, output_filename, original_filename,
         transform, epsg=32628, ndval=255, ovr=[2, 4, 8, 16, 32, 64]):
@@ -287,8 +325,10 @@ def main():
                 # median
                 #prediction = median_filter(cp.asarray(prediction), size=20)
                 #prediction = cp.asnumpy(prediction)
-                to_cog(
-                    input_array=prediction, original_filename=rast, output_filename=output_filename, transform=transform)
+                #to_cog(
+                #    input_array=prediction, original_filename=rast, output_filename=output_filename, transform=transform)
+                arr_to_tif(
+                    raster_f=rast, segments=prediction, out_tif=output_filename, ndval=-10001)
                 prediction = None  # unload between each iteration
 
             else:
