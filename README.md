@@ -1,10 +1,19 @@
 # Ethiopia LCLUC
 
-Ethiopia LCLUC
+Ethiopia LCLUC using WorldView imagery
 
-## Data Directory
+## Objectives
 
-/adapt/nobackup/projects/ilab/projects/Ethiopia/LCLUC_Ethiopia
+- LCLUC utilizing random forest algorithm
+- LCLUC utilizing XGBoost algorithm
+- LCLUC utilizing CNN algorithm
+
+## Data Catalog
+
+- Project Location: /explore/nobackup/projects/ilab/projects/Ethiopia/LCLUC_Ethiopia
+- Full Domain Data Location: /adapt/nobackup/people/mwooten3/Ethiopia_Woubet/VHR
+- Gonji Subset Data Location: /adapt/nobackup/people/walemu/NASA_NPP/CRPld_Map_Pred_and_Forec/EVHR/Gonji_Subset/5-toas
+
 
 ## Container
 

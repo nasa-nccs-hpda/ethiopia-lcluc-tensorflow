@@ -1,16 +1,22 @@
-# Ethipia LCLUC - Land Cover
+# Ethiopia LCLUC - Land Cover
 
-Objectives:
+## Objectives
 
 - LCLUC utilizing random forest algorithm.
+- LCLUC utilizing XGBoost algorithm.
 - LCLUC utilizing CNN algorithm.
 
 ## Data Location
 
-Project Location: /att/gpfsfs/atrepo01/ILAB/projects/Ethiopia
+Project Location: /explore/nobackup/projects/ilab/projects/Ethiopia/LCLUC_Ethiopia
 Data Location: /att/nobackup/walemu/NASA_NPP/CRPld_Map_Pred_and_Forec/EVHR/Gonji_Subset/5-toas
 Data Location (Formal regions): /att/nobackup/mwooten3/Ethiopia_Woubet/VHR/M1BS/*-toa.tif
 Data Location Local: /Users/jacaraba/Desktop/development/ilab/ethiopia-lcluc/adapt-data
+
+## Initial Test
+
+- Label: 
+- Data: /adapt/nobackup/people/mwooten3/Ethiopia_Woubet/VHR/M1BS/WV03_20141207_M1BS_10400100053C0600-toa.tif
 
 ## Classes to Identify
 
