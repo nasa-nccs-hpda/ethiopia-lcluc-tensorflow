@@ -2,6 +2,8 @@
 
 Ethiopia LCLUC using WorldView imagery
 
+[![DOI](https://zenodo.org/badge/527702332.svg)](https://zenodo.org/badge/latestdoi/527702332)
+
 ## Objectives
 
 - LCLUC utilizing random forest algorithm
@@ -28,3 +30,6 @@ singularity build --sandbox nccs-lcluc docker://gitlab.nccs.nasa.gov:5050/nccs-l
 singularity shell -B /att,/lscratch/jacaraba:/tmp --nv nccs-lcluc
 source activate rapids
 ```
+
+singularity shell --nv -B /lscratch,/explore/nobackup/projects/ilab,/explore/nobackup/projects/3sl,/explore/nobackup/people /lscratch/jacaraba/container/tensorflow-caney
+export PYTHONPATH="/explore/nobackup/people/jacaraba/development/tensorflow-caney:/explore/nobackup/people/jacaraba/development/ethiopia_lcluc_tensorflow"
