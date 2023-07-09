@@ -3,12 +3,11 @@
 # very-high resolution dataset using deep learning techniques.
 # --------------------------------------------------------------------------
 
-experiment_name: landcover
-experiment_type: crop
+experiment_name: landcover-local-standardization-256-crop-resnet
+experiment_type: otcb
 
-data_dir: '/lscratch/jacaraba/ethiopia-lcluc/landcover.v1'
-model_dir: /lscratch/jacaraba/ethiopia-lcluc/landcover.v1
-
+data_dir: '/lscratch/jacaraba/senegal-lcluc/landcover.landcover-local-standardization-256-crop-resnet'
+model_dir: /explore/nobackup/projects/3sl/development/cnn_landcover/standardization/landcover-local-standardization-256-crop-resnet
 seed: 42
 gpu_devices: 0,1,2,3
 mixed_precision: False
@@ -25,47 +24,24 @@ input_bands:
   - NIR2
 
 output_bands:
-  #- CoastalBlue
   - Blue
   - Green
-  #- Yellow
   - Red
-  #- RedEdge
   - NIR1
-  #- NIR2
-  #- CS1
-  #- CS2
-  #- DVI
-  #- DWI
-  #- NDVI
+
   
-substract_labels: True
-normalize: 10000.0
-
-# 0 trees
-# 1 crop
-# 2 other vegetation
-# 3 water/shadow
-# 4 burn
-# 5 clouds
-# 6 - nodata
-
-#0=crop
-#1=shrub
-#2=forest
-#3=bare
-#4=settlement
-#5=grass
+substract_labels: False
+normalize: 1.0
+rescale: None
 
 modify_labels:
   - "x == 0": 8
-  - "x < 6": 0
+  - "x == 1": 9
+  - "x == 2": 0
+  - "x == 3": 0
+  - "x == 4": 0
   - "x == 8": 1
-#  - "x == 3": 0
-#  - "x == 2": 0
-#  - "x == 8": 1
-#  - "x == 9": 2
-#  - "x == 7": 3
+  - "x == 9": 0
 
 expand_dims: True
 tile_size: 256
@@ -84,20 +60,8 @@ learning_rate: 0.0001
 max_epochs: 6000
 patience: 10
 
-model: "tfc.unet.unet_batchnorm(nclass=1, input_size=(256, 256, 4),maps=[64, 128, 256, 512, 1024])"
-#model: "sm.Unet('resnet34', input_shape=(256, 256, 3), encoder_weights=None, classes=4, activation='softmax')"
-#model: "tfc.unet.deep_unet(nclass=1, input_size=(512, 512, 8), first_layer_filter_count=32)"
-
-
-#loss: 'tf.keras.losses.CategoricalCrossentropy()'
-#loss: 'sm.losses.DiceLoss(smooth=1e-08)'
+model: "tfc.segmentation_unet.Attention_UNet((256,256,4), NUM_CLASSES=1, dropout_rate=0.0, batch_norm=True)"
 loss: 'tf.keras.losses.BinaryCrossentropy()'
-#loss: 'tf.keras.losses.BinaryCrossentropy()'
-
-#loss: sm.losses.CategoricalFocalLoss
-#loss: sm.losses.categorical_focal_dice_loss
-#loss: sm.losses.categorical_focal_jaccard_loss
-
 optimizer: tf.keras.optimizers.Adam
 
 metrics:
@@ -117,11 +81,11 @@ window_size: 10000
 pred_batch_size: 32
 inference_overlap: 0.50
 inference_treshold: 0.50
+probability_map: True
 
 # Prediction location
-# model_filename: /projects/kwessel4/nga-senegal-4class/dataset/model/48-0.16.hdf5
 inference_regex_list:
-  - '/explore/nobackup/projects/ilab/projects/Ethiopia/LCLUC_Ethiopia/data/test/WV03_20191225_M1BS_1040010054444E00-toa-Gubalafto_merged2.tif'
-  - '/explore/nobackup/projects/ilab/projects/Ethiopia/LCLUC_Ethiopia/data/test/WV03_20141201_M1BS_1040010005D3C500-toa_clipped.tif'
-  - '/explore/nobackup/people/walemu/NASA_NPP/CRPld_Map_Pred_and_Forec/Ethiopia_Woubet/VHR/M1BS/*-toa.tif'
-inference_save_dir: '/explore/nobackup/projects/ilab/projects/Ethiopia/LCLUC_Ethiopia/development/landcover.v1.1'
+  #- '/explore/nobackup/projects/3sl/data/Tappan/*_data.tif'
+  - '/explore/nobackup/projects/3sl/data/Tappan/Tappan01_WV02_20110430_M1BS_103001000A27E100_data.tif'
+  - '/explore/nobackup/projects/ilab/projects/Ethiopia/LCLUC_Ethiopia/data/test/WV*.tif'
+inference_save_dir: '/explore/nobackup/projects/3sl/development/cnn_landcover/standardization/landcover-local-standardization-256-crop-resnet'

@@ -1,2 +1,4 @@
 data,label,ntiles
-/explore/nobackup/projects/ilab/projects/Ethiopia/LCLUC_Ethiopia/data/test/WV03_20141201_M1BS_1040010005D3C500-toa_clipped.tif,/panfs/ccds02/nobackup/people/walemu/NASA_NPP/CRPld_Map_Pred_and_Forec/Training_data/training_data_with_without_ParcelsShape/et_denbiya_mini.tif,3000
+/explore/nobackup/projects/ilab/projects/Ethiopia/LCLUC_Ethiopia/data/test/WV03_20141201_M1BS_1040010005D3C500-toa_clipped.tif,/explore/nobackup/projects/ilab/projects/Ethiopia/LCLUC_Ethiopia/labels/current/Denbiya_merged2.tif,2000
+/explore/nobackup/projects/ilab/projects/Ethiopia/LCLUC_Ethiopia/data/test/WV03_20150115_M1BS_1040010007626900-toa-Achefer_merged2.tif,/explore/nobackup/projects/ilab/projects/Ethiopia/LCLUC_Ethiopia/labels/current/Achefer_merged2.tif,2000
+/explore/nobackup/projects/ilab/projects/Ethiopia/LCLUC_Ethiopia/data/test/WV03_20150115_M1BS_1040010007626900-toa-Achefer_crops_merged2.tif,/explore/nobackup/projects/ilab/projects/Ethiopia/LCLUC_Ethiopia/labels/current/Achefer_crops_merged2.tif,2000

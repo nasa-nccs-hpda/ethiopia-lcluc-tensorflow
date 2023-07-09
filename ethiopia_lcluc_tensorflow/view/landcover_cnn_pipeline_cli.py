@@ -27,7 +27,7 @@ def main():
     parser.add_argument('-d',
                         '--data-csv',
                         type=str,
-                        required=True,
+                        required=False,
                         dest='data_csv',
                         help='Path to the data configuration file')
 
