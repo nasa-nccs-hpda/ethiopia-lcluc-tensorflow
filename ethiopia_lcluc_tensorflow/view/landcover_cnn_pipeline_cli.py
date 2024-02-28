@@ -2,8 +2,8 @@ import sys
 import time
 import logging
 import argparse
-from tensorflow_caney.model.pipelines.cnn_segmentation \
-    import CNNSegmentation as LandCoverPipeline
+from ethiopia_lcluc_tensorflow.model.pipelines.landcover_pipeline \
+    import LandCoverPipeline
 
 
 # -----------------------------------------------------------------------------
@@ -31,6 +31,14 @@ def main():
                         dest='data_csv',
                         help='Path to the data configuration file')
 
+    parser.add_argument('-vd',
+                        '--validation-database',
+                        type=str,
+                        required=False,
+                        default=None,
+                        dest='validation_database',
+                        help='Path to validation database')
+
     parser.add_argument(
                         '-s',
                         '--step',
@@ -40,7 +48,7 @@ def main():
                         dest='pipeline_step',
                         help='Pipeline step to perform',
                         default=['preprocess', 'train', 'predict'],
-                        choices=['preprocess', 'train', 'predict'])
+                        choices=['preprocess', 'train', 'predict', 'validate'])
 
     args = parser.parse_args()
 
@@ -52,11 +60,13 @@ def main():
 
     # Regression CHM pipeline steps
     if "preprocess" in args.pipeline_step:
-        pipeline.preprocess()
+        pipeline.preprocess(enable_multiprocessing=True)
     if "train" in args.pipeline_step:
         pipeline.train()
     if "predict" in args.pipeline_step:
         pipeline.predict()
+    if "validate" in args.pipeline_step:
+        pipeline.validate(args.validation_database)
 
     logging.info(f'Took {(time.time()-timer)/60.0:.2f} min.')
 
