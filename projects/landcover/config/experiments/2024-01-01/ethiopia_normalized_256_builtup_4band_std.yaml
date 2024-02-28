@@ -3,14 +3,14 @@
 # very-high resolution dataset using deep learning techniques.
 # --------------------------------------------------------------------------
 
-experiment_name: 6class-global-standardization-256-4band-v2
-experiment_type: 6class
+experiment_name: normalized-256-4band-builtup-microsoft
+experiment_type: builtup
 
-data_dir: '/lscratch/jacaraba/ethiopia-lcluc/${experiment_name}'
-model_dir: '/explore/nobackup/projects/3sl/development/cnn_landcover/accuracy-increase-ethiopia/${experiment_name}'
+data_dir: '/explore/nobackup/projects/3sl/development/cnn_landcover/accuracy-increase-composite-ethiopia/normalized-256-4band-builtup-microsoft'
+model_dir: '/explore/nobackup/projects/3sl/development/cnn_landcover/accuracy-increase-composite-ethiopia/normalized-256-4band-builtup-microsoft-std/model'
 seed: 42
-gpu_devices: 0,1,2,3,5,6,7
-mixed_precision: False
+gpu_devices: 0,1,2,3
+mixed_precision: True
 xla: False
 
 input_bands:
@@ -29,41 +29,44 @@ output_bands:
   - Red
   - NIR1
 
-  
 substract_labels: False
-normalize: 1.0
+normalize: 10000.0
 rescale: None
-
-#modify_labels:
-#  - "x == 0": 8
-#  - "x == 1": 9
-#  - "x == 4": 7
-#  - "x == 3": 0
-#  - "x == 2": 0
-#  - "x == 8": 0
-#  - "x == 9": 1
-#  - "x == 7": 0
 
 expand_dims: True
 tile_size: 256
 include_classes: True
 augment: True
 
+modify_labels:
+  - "x == 0": 0
+  - "x == 1": 0
+  - "x == 2": 0
+  - "x == 3": 1
+  - "x == 4": 0
+  - "x == 5": 0
+
 # standardization functions: local, global, mixed
 # global standardization
 # mixed standardization
 #metadata_regex: '/explore/nobackup/projects/3sl/development/cnn_landcover/normalization/*.csv'
 standardization: 'local'
+#'local'
 batch_size: 128
-n_classes: 6
-test_size: 0.30
+n_classes: 1
+test_size: 0.20
 learning_rate: 0.0001
 max_epochs: 6000
 patience: 10
 
-model: "tfc.segmentation_unet.Attention_UNet((256,256,4), NUM_CLASSES=6, dropout_rate=0, batch_norm=True)"
-loss: 'tf.keras.losses.CategoricalCrossentropy()'
-optimizer: tf.keras.optimizers.Adam
+#model: "tfc.segmentation_unet.Attention_UNet((256,256,4), NUM_CLASSES=6, dropout_rate=0, batch_norm=True)"
+model: "tfc.networks.unet.unet_batchnorm(nclass=1, input_size=(256, 256, 4),maps=[64, 128, 256, 512, 1024])"
+#model: "sm.Unet('resnet34', classes=1, activation='sigmoid', input_shape=(256, 256, 4), encoder_weights=None)"
+#loss: 'tf.keras.losses.CategoricalCrossentropy()'
+loss: sm.losses.categorical_focal_dice_loss
+#loss: sm.losses.bce_jaccard_loss
+#loss: 'sm.losses.BinaryFocalLoss()'
+optimizer: tf.keras.optimizers.legacy.Adam
 
 metrics:
   - 'tf.keras.metrics.CategoricalAccuracy()'
@@ -72,7 +75,8 @@ metrics:
   - 'sm.metrics.iou_score'
 
 callbacks:
-  - "tf.keras.callbacks.ModelCheckpoint(save_best_only=True, mode='min', monitor='val_loss', filepath='${model_dir}/${experiment_name}{epoch:02d}-{val_loss:.2f}.hdf5')"
+  #- "tf.keras.callbacks.ModelCheckpoint(save_best_only=True, mode='max', monitor='val_categorical_accuracy', filepath='${model_dir}/{epoch:02d}-{val_loss:.2f}.hdf5')"
+  - "tf.keras.callbacks.ModelCheckpoint(save_best_only=True, mode='min', monitor='val_loss', filepath='${model_dir}/{epoch:02d}-{val_loss:.2f}.hdf5')"
   - "tf.keras.callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=4)"
   - "tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=False)"
   - "tf.keras.callbacks.TerminateOnNaN()"
@@ -84,10 +88,10 @@ window_size: 10000
 pred_batch_size: 32
 inference_overlap: 0.50
 inference_treshold: 0.50
-probability_map: True
+probability_map: False
 
 # Prediction location
-#model_filename: '/explore/nobackup/projects/3sl/development/cnn_landcover/accuracy-increase-ethiopia/6class-global-standardization-256-4band-v2/6class-global-standardization-256-4band-v275-0.65.hdf5'
+#model_filename: '/explore/nobackup/projects/3sl/development/cnn_landcover/accuracy-increase-ethiopia/6class-global-standardization-256-4band-v4/model/193-0.12.hdf5'
 inference_regex_list:
   #- '/explore/nobackup/projects/3sl/data/Tappan/Tappan01_WV02_20110430_M1BS_103001000A27E100_data.tif'
   #- '/explore/nobackup/projects/ilab/projects/Ethiopia/LCLUC_Ethiopia/data/test/WV*.tif'
@@ -106,5 +110,10 @@ inference_regex_list:
   #- '/explore/nobackup/projects/3sl/data/VHR/CAS/M1BS/WV02_20150626_M1BS_1030010044514E00-toa.tif'
   #- '/explore/nobackup/projects/3sl/data/VHR/CAS/M1BS/WV02_20160621_M1BS_1030010058657B00-toa.tif'
   # - '/explore/nobackup/projects/hls/EVHR/Amhara-MS/WV03_20141207_M1BS_10400100053C0600-toa.tif'
-  - '/explore/nobackup/projects/hls/EVHR/Amhara-MS/*-toa.tif'
-inference_save_dir: '${model_dir}/results'
+  #- '/explore/nobackup/projects/hls/EVHR/Amhara-MS/*-toa.tif'
+  #- '/explore/nobackup/projects/hls/EVHR/Amhara-MS/WV02_20210601_M1BS_10300100BF816100-toa.tif'
+  #- '/explore/nobackup/projects/hls/EVHR/Amhara-MS/WV02_20100331_M1BS_103001000470DA00-toa.tif'
+  #- '/explore/nobackup/projects/hls/EVHR/Amhara-MS/WV03_20220204_M1BS_1040010073369100-toa.tif'
+  - '/explore/nobackup/projects/hls/EVHR/Amhara-MS/WV02_20091217_M1BS_103001000325D200-toa.tif'
+  #- '/explore/nobackup/projects/hls/EVHR/Amhara-MS/*-toa.tif'
+inference_save_dir: '${data_dir}/results-resnet'

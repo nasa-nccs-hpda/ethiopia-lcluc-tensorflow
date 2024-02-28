@@ -1,0 +1,3 @@
+data,label,ntiles
+/explore/nobackup/projects/3sl/labels/landcover/2m/EthiopiaBuildings/city1_WV02_20190130_M1BS_103001008A662F00-toa_clip.tif,/explore/nobackup/projects/3sl/auxiliary/Ethiopia/MicrosoftBuildings/training/city1_122330103_dis_prj_erase_merge.tif,2000
+/explore/nobackup/projects/3sl/labels/landcover/2m/EthiopiaBuildings/city2_WV02_20210317_M1BS_10300100BB3DD900-toa_clip.tif,/explore/nobackup/projects/3sl/auxiliary/Ethiopia/MicrosoftBuildings/training/city2_122331000_dis_prj_erase_merge.tif,2000
