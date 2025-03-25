@@ -323,69 +323,79 @@ class LandCoverCompositePipeline(object):
             if not tile_grid_dataset:
                 continue
 
-            # *MW changes for when zarr is read from disk (not sure why this is suddenly a problem)
-            # fillna and compute does nothing for grid generated above but fixes issue with zarr from read
-            # tile_grid_data_array = tile_grid_dataset[output_name].astype(
-            #     np.uint32)
+            # MW changes for when zarr is read from disk
+            # (not sure why this is suddenly a problem)
+            # fillna and compute does nothing for grid
+            # generated above but fixes issue with zarr from read
             tile_grid_data_array = tile_grid_dataset[output_name].fillna(
                   tile_grid_dataset._FillValue).compute().astype(np.uint32)
-            tile_grid_data_array.attrs.update(tile_grid_dataset.attrs) # maybe not necessary but if read from zarr, attrs not in dataarray
+
+            # maybe not necessary but if read from zarr, attrs not in dataarray
+            tile_grid_data_array.attrs.update(tile_grid_dataset.attrs)
 
             del tile_grid_dataset
 
             # print(tile_grid_data_array)
-            # *MW this takes the filtered tile gdf (eg currently the epoch gdf) and 
-            # gets only the single tile gdf - would we filter for other attributes here?
+            # *MW this takes the filtered tile gdf
+            # (eg currently the epoch gdf) and
+            # gets only the single tile gdf -
+            # would we filter for other attributes here?
             metadata_per_tile_fltrd = \
-                      metadata_gdf_filtered[metadata_gdf_filtered['tile']== tile]
+                metadata_gdf_filtered[metadata_gdf_filtered['tile'] == tile]
 
             len_filtered_strips = len(metadata_per_tile_fltrd)
-            msg =  f'Number of filtered strips in {tile}: ' + \
-                                                    f'{len_filtered_strips}'
-            logging.info(msg)
+            logging.info(
+                f'Number of filtered strips in {tile}: {len_filtered_strips}')
+
+            # if no strips are left, continue
             if len_filtered_strips < 1:
                 continue
 
-            #*MW do we need this anymore, or should we just filter based on X 
+            # *MW do we need this anymore, or should we just filter based on X
             # attributes eg soil moisture, date, whatever, and accept the
-            # possibility of holes (that we can fill later with post-processing)?
-            # Use the updated GDF to further filter by soil moisture QA
-            if self.conf.soil_moisture_qa: #*MW add
-                logging.info(f'QAin with soil moisture > ') #*TD eneter value thresho9lf
+            # possibility of holes (that we can fill later
+            # with post-processing)? Use the updated GDF to further filter by
+            # soil moisture QA
+            # TODO: enter value threshold
+            if self.conf.soil_moisture_qa:
+                logging.info('QAin with soil moisture > ')
                 good, bad = self.soilMoistureQA(metadata_per_tile_fltrd)
-            else: # totherwise good = df and bad = empty
-                logging.info(f'Not QAing with soil moisture') #*TD eneter value thresho9lf
+            else:
+                logging.info('Not QAing with soil moisture')
                 good = metadata_per_tile_fltrd.copy()
                 bad = pd.DataFrame(columns=metadata_per_tile_fltrd.columns)
-            # import pdb; pdb.set_trace()
 
             logging.info(
-            f"toa paths for filtered strips:\n  {good['toa_path'].values}")
+                f'Paths for filtered strips:\n {good['toa_path'].values}')
 
             # When filling holes we want to start with the "best" of the bad
             # i.e. the lowest soil moisture first
             bad = bad.sort_values(by='soilM_median')
 
-            #*MW if adding other filters besides years, they just need to be in 
-            # the "good" dataframe, which they will be if theyre in 
+            # if adding other filters besides years, they just need to be in
+            # the "good" dataframe, which they will be if they are in
             # metadata_per_tile_fltrd & do not get removed by soil moisture QA
             passed_qa_datetimes = list(good.datetime.values)
             not_passed_qa_datetimes = list(bad.datetime.values)
 
-            #*MW what is the point of this? added try to avoid issue with missing outputs
-            try: 
+            # what is the point of this? added try to avoid issue
+            # with missing outputs
+            try:
                 tile_grid_data_array.sel(time=passed_qa_datetimes)
                 tile_grid_data_array.sel(time=not_passed_qa_datetimes)
-            except KeyError as ke: # this happens when strip is missing from indir
+            except KeyError as ke:  # this happens when strip is missing
                 logging.info(f'Problem with slicing array with time: {ke}')
-                # find missing datetimes
-                tile_grid_times =\
-                           pd.to_datetime(tile_grid_data_array.time.values)
-                remove_dts = [dt for dt in passed_qa_datetimes \
-                                              if dt not in tile_grid_times] 
 
-                # Decide whether to process tiles without missing/corrupt inputs and add to list, or skip tile entirely
-                #*MW TODO only do this duinrg debug? otherwise, skip tile and print
+                # find missing datetimes
+                tile_grid_times = \
+                    pd.to_datetime(tile_grid_data_array.time.values)
+                remove_dts = [
+                    dt for dt in passed_qa_datetimes
+                    if dt not in tile_grid_times]
+
+                # Decide whether to process tiles without missing/corrupt
+                # inputs and add to list, or skip tile entirely
+                # TODO only do this duinrg debug? otherwise, skip tile and print
                 if True: # if debug On, remove and print removed datetimes. Save tile to list to reprocess
 
                     # include only passed_qa_datetimes that are present in tile_grid_data_array.time
@@ -406,43 +416,47 @@ class LandCoverCompositePipeline(object):
                         continue
 
                 else: # do not debug
-                    logging.info(f'Tile {tile} not processed due to missing landcover output(s): {remove_dts}')
+                    logging.info(
+                        f'Tile {tile} not processed due to missing landcover output(s): {remove_dts}')
                     continue
 
-            logging.info(f'Continuing with {len(passed_qa_datetimes)} datetimes for {tile} (of {len(passed_qa_datetimes)+len(not_passed_qa_datetimes)})')
+            logging.info(
+                f'Continuing with {len(passed_qa_datetimes)} datetimes ' +
+                f'for {tile} (of {len(passed_qa_datetimes)+len(not_passed_qa_datetimes)})'
+            )
 
-            #*MW this should no longer fail due to if/else above
+            # this should no longer fail due to if/else above
             tile_grid_ds_good = tile_grid_data_array.sel(
-                                            time=passed_qa_datetimes)
+                time=passed_qa_datetimes)
             tile_grid_ds_bad = tile_grid_data_array.sel(
-                                            time=not_passed_qa_datetimes)
+                time=not_passed_qa_datetimes)
 
-            nodata_value = np.uint8(255) #np.uint32(255) #*MW TD address nodata
-            
-            output_mode_filename = Path(output_mode_filename) #*MW renamed variable for clarity
+            nodata_value = np.uint8(self.conf.fill_value)
 
-            # TESTED THROUGH HERE
+            output_mode_filename = Path(output_mode_filename)
 
-            #*TD currently 
-            tile_grid_use = tile_grid_ds_good # set = tile_grid_data_array to not exclude "bad qa" datetimes in calculations (not nobs which always uses both as of now)
+            # TODO: currently
+            # set = tile_grid_data_array to not exclude "bad qa" datetimes in calculations (not nobs which always uses both as of now)
+            tile_grid_use = tile_grid_ds_good
             del tile_grid_data_array
 
             overwrite = self.conf.overwrite_tifs 
 
-            #*MW - write stack from grid to temp .tif for debugging TODO - add debug param in config?
+            # write stack from grid to temp .tif for debugging 
+            # TODO - add debug param in config?
             # write stack to disk
             if False:
                 # import pdb;pdb.set_trace()
                 landcover_stack = tile_grid_use.rio.write_nodata(nodata_value)
-                
-                lc_stack_filename = str(output_mode_filename).replace('.mode.tif', '.landcover-temp.tif')
+
+                lc_stack_filename = str(
+                    output_mode_filename).replace('.mode.tif', '.landcover-temp.tif')
                 landcover_stack.squeeze().rio.to_raster(lc_stack_filename,
                                                             dtype = np.uint8,
                                                             compress='lzw')
                 del landcover_stack
-            # import pdb;pdb.set_trace()
 
-            #*MW - below calls now use the boolean calculate parameters from .yaml 
+            # below calls now use the boolean calculate parameters from .yaml 
             # to determine which outputs should be created by calling the various functions
             if self.conf.calculate_mode_composite: 
                 logging.info('Reducing with multi-mode')
@@ -458,7 +472,7 @@ class LandCoverCompositePipeline(object):
                                                     )
 
                 if reduced_stack is not None: #* this will return None if final output already made
-    
+
                     logging.info('Filling holes with best of the "bad" tiles')
                     #*MW what is this doing? seems to be doing the QA (eg filling 
                     # holes with 'bad' soilmoisture in order from best to worst of 
@@ -565,7 +579,6 @@ class LandCoverCompositePipeline(object):
                 # save
 
             gc.collect()
-
 
         return
 
