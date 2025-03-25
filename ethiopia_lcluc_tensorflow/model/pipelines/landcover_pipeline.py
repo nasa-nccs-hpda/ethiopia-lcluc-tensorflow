@@ -62,11 +62,11 @@ class LandCoverPipeline(CNNSegmentation):
     # -------------------------------------------------------------------------
     def __init__(self, config_filename, data_csv=None, logger=None):
 
-        # Set logger
-        self.logger = logger if logger is not None else self._set_logger()
-
         # Configuration file intialization
         self.conf = self._read_config(config_filename, Config)
+
+        # Set logger
+        self.logger = logger if logger is not None else self._set_logger()
 
         # Set Data CSV
         self.data_csv = data_csv
