@@ -53,12 +53,17 @@ def main():
     # setup pipeline object
     pipeline = LandCoverCompositePipeline(args.config_file)
 
-    # Regression CHM pipeline steps
+    # Compositing pipeline steps
     if "build_footprints" in args.pipeline_step:
         pipeline.build_footprints()
     if "extract_metadata" in args.pipeline_step:
         pipeline.extract_metadata()
     if "composite" in args.pipeline_step:
+        if args.tiles_filename is None:
+            sys.exit(
+                'ERROR: You need to provide --tiles-filename with ' +
+                'the compositing step of this pipeline.'
+            )
         pipeline.composite(args.tiles_filename)
 
     logging.info(f'Took {(time.time()-timer)/60.0:.2f} min.')

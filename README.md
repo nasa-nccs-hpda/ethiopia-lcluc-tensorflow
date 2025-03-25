@@ -26,7 +26,7 @@ Ethiopia LCLUC using WorldView imagery
 
 ## Cloud Masking
 
-NOTE: this instructions need to be updated with the new vhr-cloudmask software
+NOTE: these instructions need to be updated with the new vhr-cloudmask software
 developed by the team. Overall example to run cloud masking:
 
 ```bash
@@ -53,7 +53,7 @@ Below you will find examples on how to run each one of these.
 ### Build footprints
 
 ```bash
-singularity exec --env PYTHONPATH="/explore/nobackup/people/jacaraba/development/vhr-composite:/explore/nobackup/people/jacaraba/development/ethiopia-lcluc-tensorflow" --nv -B $NOBACKUP,/lscratch,/explore/nobackup/people,/explore/nobackup/projects /explore/nobackup/projects/ilab/containers/tensorflow-caney-2023.05 python /explore/nobackup/people/jacaraba/development/ethiopia-lcluc-tensorflow/ethiopia_lcluc_tensorflow/view/landcover_composite_pipeline_cli.py -c /explore/nobackup/people/jacaraba/development/ethiopia-lcluc-tensorflow/projects/composite/configs/composite_ethiopia_epoch1.yaml -s build_footprints
+singularity exec --env PYTHONPATH="/explore/nobackup/people/jacaraba/development/vhr-composite:/explore/nobackup/people/jacaraba/development/ethiopia-lcluc-tensorflow" --nv -B $NOBACKUP,/lscratch,/explore/nobackup/people,/explore/nobackup/projects,/panfs/ccds02/nobackup/projects /lscratch/jacaraba/container/tensorflow-caney python /explore/nobackup/people/jacaraba/development/ethiopia-lcluc-tensorflow/ethiopia_lcluc_tensorflow/view/landcover_composite_pipeline_cli.py -c /explore/nobackup/people/jacaraba/development/ethiopia-lcluc-tensorflow/projects/composite/configs/dev/composite_ethiopia_epoch1.yaml -s build_footprints
 ```
 
 ### Extract metadata

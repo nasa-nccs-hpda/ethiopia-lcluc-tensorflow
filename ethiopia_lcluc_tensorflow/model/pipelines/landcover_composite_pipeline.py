@@ -1,7 +1,9 @@
 import os
+import gc
 import sys
 import time
 import tqdm
+import shutil
 import logging
 import argparse
 import omegaconf
@@ -16,6 +18,7 @@ from vhr_composite.model.metadata import Metadata
 from vhr_composite.model.utils import TqdmLoggingHandler
 from vhr_composite.model import post_process
 
+
 class LandCoverCompositePipeline(object):
 
     # -------------------------------------------------------------------------
@@ -26,24 +29,48 @@ class LandCoverCompositePipeline(object):
         # Configuration file intialization
         self.conf = omegaconf.OmegaConf.load(config_filename)
 
+        # select output directory based on filter name
+        if self.conf.filter_months:
+            self.conf.output_tif_dir = os.path.join(
+                self.conf.output_dir,
+                f'{self.conf.start_year}.{self.conf.end_year}.' +
+                self.conf.filter_name
+            )
+        else:
+            self.conf.output_tif_dir = os.path.join(
+                self.conf.output_dir,
+                f'{self.conf.start_year}.{self.conf.end_year}'
+            )
+
         # create output directory
-        os.makedirs(self.conf.output_dir, exist_ok=True)
+        os.makedirs(self.conf.output_tif_dir, exist_ok=True)
+
+        # set logging
+        self._set_logging(
+            f'{self.conf.start_year}.{self.conf.end_year}')
+
+        logging.info(f'Created output dir: {self.conf.output_tif_dir}')
+
+        # copy config file to output directory
+        shutil.copy(config_filename, self.conf.output_tif_dir)
+        logging.info(f'Saved config file to: {self.conf.output_tif_dir}')
 
     # -------------------------------------------------------------------------
-    # _set_logger
+    # _set_logging
     # -------------------------------------------------------------------------
-    def _set_logger(self, description: str = ''):
+    def _set_logging(self, description: str = ''):
         """
-        Set logger configuration.
+        Set logging configuration.
         """
-        # setup logger configuration
+        # setup logging configuration
         logger = logging.getLogger()
+        logger.handlers.clear()
         logger.setLevel(logging.INFO)
         fh_name = os.path.join(
-            self.conf.output_dir,
+            self.conf.output_tif_dir,
             f'{description}.log')
 
-        # set file handler logger configuration
+        # set file handler logging configuration
         ch = logging.FileHandler(fh_name)
         sh = TqdmLoggingHandler()
         ch.setLevel(logging.INFO)
@@ -56,6 +83,8 @@ class LandCoverCompositePipeline(object):
         sh.setFormatter(formatter)
         logger.addHandler(ch)
         logger.addHandler(sh)
+
+        logging.info(f'Output logs sent to: {fh_name}')
         return logger
 
     # -------------------------------------------------------------------------
@@ -63,15 +92,15 @@ class LandCoverCompositePipeline(object):
     # -------------------------------------------------------------------------
     def build_footprints(self) -> None:
 
-        # set logger
-        self._set_logger('build_footprints')
+        # set logging
+        self._set_logging('build_footprints')
 
         # create object for building footprint
         footprints = Footprints(
             self.conf,
             input_data=self.conf.input_data_regex,
             output_filename=self.conf.footprints_filename,
-            grid_filename=self.conf.grid_path
+            grid_filename=self.conf.grid_filename
         )
 
         # start the generation of footprints
@@ -84,8 +113,8 @@ class LandCoverCompositePipeline(object):
     # -------------------------------------------------------------------------
     def extract_metadata(self) -> None:
 
-        # set logger
-        self._set_logger('extract_metadata')
+        # set logging
+        self._set_logging('extract_metadata')
 
         # create object for building footprint
         metadata = Metadata(
@@ -104,8 +133,12 @@ class LandCoverCompositePipeline(object):
     # -------------------------------------------------------------------------
     def composite(self, tiles_filename: str) -> None:
 
-        # set logger
-        logger = self._set_logger(
+        # verify of tiles_filename is not None, else exit
+        if tiles_filename is None:
+            sys.exit('Specify tiles_filename option as an argument.')
+
+        # set logging
+        self._set_logging(
             f'composite-{Path(tiles_filename).stem}')
 
         # make sure tiles_filename exists
@@ -173,32 +206,62 @@ class LandCoverCompositePipeline(object):
         # Initialize composite class
         composite = Composite(
             name=self.conf.test_name,
-            grid_geopackage_path=self.conf.grid_path,
+            grid_geopackage_path=self.conf.grid_filename,
             model_output_geopackage_path=model_output_gdf_name,
-            output_dir=self.conf.output_dir,
-            logger=logger
+            output_dir=self.conf.output_dir
         )
 
         # read clean metadata file
+        if not os.path.exists(model_output_gdf_name):
+            sys.exit(
+                f'Metadata filename {model_output_gdf_name} ' +
+                'does not exist. Perhaps you need to run the ' +
+                'build_footprints step?'
+            )
         metadata_gdf = gpd.read_file(model_output_gdf_name)
         logging.info(f'Metadata includes {metadata_gdf.shape[0]} strips.')
         logging.info(f'Years in metadata: {metadata_gdf.year.unique()}')
 
         # Filter the strips to use in mode and bad data filling to be within
         # the desired "epoch" or year range of the acquisition time
+        start_date = pd.to_datetime(
+            f"{self.conf.start_year}-01-01").tz_localize('UTC')
+        end_date = pd.to_datetime(
+            f"{self.conf.end_year}-12-31 23:59:59").tz_localize('UTC')
+
+        # set initial datetime mask
         datetime_mask = \
-            (
-                metadata_gdf[self.conf.datetime_column] >
-                str(self.conf.start_year)) & \
-            (metadata_gdf[self.conf.datetime_column] < str(self.conf.end_year))
+            (metadata_gdf[self.conf.datetime_column] >= start_date) & \
+            (metadata_gdf[self.conf.datetime_column] <= end_date)
+
+        # other filters - currently just months
+        if self.conf.filter_months:
+
+            # Extract the month from the datetime column
+            metadata_gdf['month'] = metadata_gdf[
+                self.conf.datetime_column].dt.month
+
+            # Define the valid months (November to May)
+            remove_months = self.conf.remove_months
+            logging.info(f'Removing months: {remove_months}')
+
+            # Add the month condition to the datetime_mask
+            datetime_mask &= ~metadata_gdf['month'].isin(
+                remove_months)
+
+        # set the new datemask if filters were applied
         metadata_gdf_filtered = metadata_gdf[datetime_mask]
+
         logging.info(
-            f'Filtered strips by date: {metadata_gdf_filtered.shape[0]}.')
-        logging.info(f'Year range: {metadata_gdf_filtered.year.unique()}')
+            'Strips remaining after filters: ' +
+            f'{metadata_gdf_filtered.shape[0]}.')
+        logging.info(
+            f'Years remaining: {metadata_gdf_filtered.year.unique()}')
 
         # Read in batched tile list (100 tiles per file)
         # most regions usually occupy just 10 or so of these
         # 100-tile text file lists.
+        logging.info(f'Reading tiles from: {tiles_filename}')
         with open(tiles_filename, 'r') as fh:
             tiles = fh.readlines()
             tiles = [tile.strip() for tile in tiles]
@@ -210,38 +273,10 @@ class LandCoverCompositePipeline(object):
         # parallel mode calculations???
         for tile in tqdm.tqdm(tiles):
 
-            """
-
-
-            # only take metadata for the specific tile
-            metadata_per_tile_filtered = \
-                metadata_gdf_filtered[metadata_gdf_filtered['tile'] == tile]
-
-            # take the number of remaining filtered strips
-            len_filtered_strips = len(metadata_per_tile_filtered)
-            logger.info(f'Filtered strips in {tile}: {len_filtered_strips}')
-
-            # if we end up with no strips, continue to next tile
-            # TODO: do we really want this?
-            if len_filtered_strips < 1:
-                continue
-
-            print(metadata_per_tile_filtered.toa_path.values)
-
-            # perform composite computation
-            composite.calculate_mode(
-                tile_path=output_tile_filename,
-                tile_raster_output_path=output_raster_filename,
-                classes=self.conf.composite_classes,
-                rows_to_use=list(
-                    metadata_per_tile_filtered.datetime.values),
-                tile_dataset_input=tile_grid_dataset
-            )
-            """
             # get the number of strips per tile
             len_strips = len(
                 metadata_gdf[metadata_gdf['tile'] == tile])
-            logger.info(f'Number of strips in {tile}: {len_strips}')
+            logging.info(f'Number of strips in {tile}: {len_strips}')
 
             if len_strips < 1:
                 continue
@@ -252,98 +287,286 @@ class LandCoverCompositePipeline(object):
             # set the output filename
             output_tile_filename = os.path.join(
                 self.conf.output_dir, f'{output_name}.zarr')
-            logger.info(f'Processing {output_tile_filename}')
+            logging.info(f'Processing {output_tile_filename}')
 
-            # output of mode
-            mode_name = \
-                f'.{self.conf.start_year}.{self.conf.end_year}' + \
-                f'.{self.conf.region}.mode'
+            # output of mode, dont need second region name
+            # add var to more easily replace for other files
+            if self.conf.filter_months:
+                mode_name = f'{self.conf.filter_name}.mode'
+            else:
+                mode_name = 'mode'
 
-            output_raster_filename = output_tile_filename.replace(
-                '.zarr', f'{mode_name}.QAD.tif')
-            logger.info(f'Storing output on {output_raster_filename}')
+            # set mode output basename
+            mode_bname = \
+                f'{self.conf.start_year}.{self.conf.end_year}' + \
+                f'.{mode_name}'
 
-            # Don't do more work than we have to. Woo!
-            if os.path.exists(output_raster_filename):
-                logger.info(f'{output_raster_filename} already exists.')
-                continue
+            # set output filename for mode
+            output_mode_filename = os.path.join(
+                self.conf.output_tif_dir,
+                f'{output_name}.{mode_bname}.tif')
+            msg = \
+                'Storing output .tif like: ' + \
+                f"{output_mode_filename.replace('mode', '*')}"
+            logging.info(msg)
 
-            # TODO: what is this?
+            # generate single grid information
             tile_grid_dataset = composite.generate_single_grid(
-                tile,  write_out=True, grid_cell_name_pre_str='Amhara.M1BS')
+                tile,
+                write_out=True,
+                overwrite=self.conf.overwrite_zarrs,
+                fill_value=self.conf.fill_value,
+                burn_area_value=self.conf.burn_area_value,
+                grid_cell_name_pre_str=self.conf.grid_cell_name_pre_str
+            )
 
             if not tile_grid_dataset:
                 continue
 
-            tile_grid_data_array = tile_grid_dataset[output_name].astype(
-                np.uint32)
-            logger.info(tile_grid_data_array.data.max())
-            logger.info(tile_grid_data_array.data.min())
+            # *MW changes for when zarr is read from disk (not sure why this is suddenly a problem)
+            # fillna and compute does nothing for grid generated above but fixes issue with zarr from read
+            # tile_grid_data_array = tile_grid_dataset[output_name].astype(
+            #     np.uint32)
+            tile_grid_data_array = tile_grid_dataset[output_name].fillna(
+                  tile_grid_dataset._FillValue).compute().astype(np.uint32)
+            tile_grid_data_array.attrs.update(tile_grid_dataset.attrs) # maybe not necessary but if read from zarr, attrs not in dataarray
 
-            print(tile_grid_data_array)
+            del tile_grid_dataset
 
-            metadata_per_tile_filtered = \
-                metadata_gdf_filtered[metadata_gdf_filtered['tile'] == tile]
+            # print(tile_grid_data_array)
+            # *MW this takes the filtered tile gdf (eg currently the epoch gdf) and 
+            # gets only the single tile gdf - would we filter for other attributes here?
+            metadata_per_tile_fltrd = \
+                      metadata_gdf_filtered[metadata_gdf_filtered['tile']== tile]
 
-            len_filtered_strips = len(metadata_per_tile_filtered)
-            logger.info(
-                f'Number of filtered strips in {tile}: {len_filtered_strips}')
+            len_filtered_strips = len(metadata_per_tile_fltrd)
+            msg =  f'Number of filtered strips in {tile}: ' + \
+                                                    f'{len_filtered_strips}'
+            logging.info(msg)
             if len_filtered_strips < 1:
                 continue
 
+            #*MW do we need this anymore, or should we just filter based on X 
+            # attributes eg soil moisture, date, whatever, and accept the
+            # possibility of holes (that we can fill later with post-processing)?
             # Use the updated GDF to further filter by soil moisture QA
-            good, bad = self.soilMoistureQA(metadata_per_tile_filtered)
+            if self.conf.soil_moisture_qa: #*MW add
+                logging.info(f'QAin with soil moisture > ') #*TD eneter value thresho9lf
+                good, bad = self.soilMoistureQA(metadata_per_tile_fltrd)
+            else: # totherwise good = df and bad = empty
+                logging.info(f'Not QAing with soil moisture') #*TD eneter value thresho9lf
+                good = metadata_per_tile_fltrd.copy()
+                bad = pd.DataFrame(columns=metadata_per_tile_fltrd.columns)
+            # import pdb; pdb.set_trace()
 
-            # When filling wholes we want to start with the "best" of the bad
+            logging.info(
+            f"toa paths for filtered strips:\n  {good['toa_path'].values}")
+
+            # When filling holes we want to start with the "best" of the bad
             # i.e. the lowest soil moisture first
             bad = bad.sort_values(by='soilM_median')
 
+            #*MW if adding other filters besides years, they just need to be in 
+            # the "good" dataframe, which they will be if theyre in 
+            # metadata_per_tile_fltrd & do not get removed by soil moisture QA
             passed_qa_datetimes = list(good.datetime.values)
             not_passed_qa_datetimes = list(bad.datetime.values)
-            tile_grid_data_array.sel(time=passed_qa_datetimes)
-            tile_grid_data_array.sel(time=not_passed_qa_datetimes)
 
-            logger.info(len(passed_qa_datetimes))
-            logger.info(len(not_passed_qa_datetimes))
+            #*MW what is the point of this? added try to avoid issue with missing outputs
+            try: 
+                tile_grid_data_array.sel(time=passed_qa_datetimes)
+                tile_grid_data_array.sel(time=not_passed_qa_datetimes)
+            except KeyError as ke: # this happens when strip is missing from indir
+                logging.info(f'Problem with slicing array with time: {ke}')
+                # find missing datetimes
+                tile_grid_times =\
+                           pd.to_datetime(tile_grid_data_array.time.values)
+                remove_dts = [dt for dt in passed_qa_datetimes \
+                                              if dt not in tile_grid_times] 
 
+                # Decide whether to process tiles without missing/corrupt inputs and add to list, or skip tile entirely
+                #*MW TODO only do this duinrg debug? otherwise, skip tile and print
+                if True: # if debug On, remove and print removed datetimes. Save tile to list to reprocess
+
+                    # include only passed_qa_datetimes that are present in tile_grid_data_array.time
+                    valid_dts = [dt for dt in passed_qa_datetimes \
+                                                  if dt in tile_grid_times]
+                    passed_qa_datetimes = valid_dts
+                    reprocess_list = os.path.join(self.conf.output_dir, 
+                                                  f'_reprocess-tiles.txt') 
+                    msg = 'Removed datetimes from list and added tile to'+\
+                                f' list: {remove_dts} ==> {reprocess_list}'
+                    logging.info(msg)
+                    with open(reprocess_list, 'a') as of: 
+                        of.write(f'{tile},{remove_dts}\n')
+
+                    # Check new length of passed datetimes *MW
+                    if len(passed_qa_datetimes) < 1:
+                        logging.info(f'0 passed datetimes after removal. Skipping {tile}')
+                        continue
+
+                else: # do not debug
+                    logging.info(f'Tile {tile} not processed due to missing landcover output(s): {remove_dts}')
+                    continue
+
+            logging.info(f'Continuing with {len(passed_qa_datetimes)} datetimes for {tile} (of {len(passed_qa_datetimes)+len(not_passed_qa_datetimes)})')
+
+            #*MW this should no longer fail due to if/else above
             tile_grid_ds_good = tile_grid_data_array.sel(
-                time=passed_qa_datetimes)
+                                            time=passed_qa_datetimes)
             tile_grid_ds_bad = tile_grid_data_array.sel(
-                time=not_passed_qa_datetimes)
+                                            time=not_passed_qa_datetimes)
 
-            nodata_value = np.uint32(10)
+            nodata_value = np.uint8(255) #np.uint32(255) #*MW TD address nodata
+            
+            output_mode_filename = Path(output_mode_filename) #*MW renamed variable for clarity
 
-            output_raster_filename = Path(output_raster_filename)
+            # TESTED THROUGH HERE
 
-            logger.info('Reducing with multi-mode')
+            #*TD currently 
+            tile_grid_use = tile_grid_ds_good # set = tile_grid_data_array to not exclude "bad qa" datetimes in calculations (not nobs which always uses both as of now)
+            del tile_grid_data_array
 
-            reduced_stack = Composite.reduce_stack('multi_mode',
-                                                tile_grid_ds_good,
-                                                output_raster_filename,
-                                                overwrite=False,
-                                                nodata=nodata_value,
-                                                gpu=True,
-                                                logger=logger)
+            overwrite = self.conf.overwrite_tifs 
 
-            logger.info('Filling holes with nodata')
+            #*MW - write stack from grid to temp .tif for debugging TODO - add debug param in config?
+            # write stack to disk
+            if False:
+                # import pdb;pdb.set_trace()
+                landcover_stack = tile_grid_use.rio.write_nodata(nodata_value)
+                
+                lc_stack_filename = str(output_mode_filename).replace('.mode.tif', '.landcover-temp.tif')
+                landcover_stack.squeeze().rio.to_raster(lc_stack_filename,
+                                                            dtype = np.uint8,
+                                                            compress='lzw')
+                del landcover_stack
+            # import pdb;pdb.set_trace()
 
-            reduced_stack_hole_filled = post_process.fill_holes(
-                tile_grid_ds_bad,
-                reduced_stack,
-                not_passed_qa_datetimes,
-                nodata_value,
-                logger)
+            #*MW - below calls now use the boolean calculate parameters from .yaml 
+            # to determine which outputs should be created by calling the various functions
+            if self.conf.calculate_mode_composite: 
+                logging.info('Reducing with multi-mode')
+                #*MW why is this called as function instead of method on composite obj?
+                #*MW call should be more or less the same, but with diff variabls - NOTE gpu=False (seg fault issues?)
+                reduced_stack = Composite.reduce_stack('multi_mode',
+                                                    tile_grid_use,
+                                                    output_mode_filename,
+                                                    overwrite=overwrite,
+                                                    nodata=nodata_value,
+                                                    gpu=True,
+                                                    # gpu=False,  #*MW
+                                                    )
 
-            logger.info(f'Writing to zarr: {str(output_raster_filename)}')
-            reduced_stack_hole_filled.rio.to_raster(str(output_raster_filename),
-                                                    dtype=np.uint32,
-                                                    compress='lzw')
-            warpOptions = ['COMPRESS=LZW']
-            warped_tile = str(output_raster_filename).replace('.tif', 'warp.tif')
-            logger.info(f'Writing warped {warped_tile}')
-            _ = gdal.Warp(warped_tile,
-                        str(output_raster_filename),
-                        warpOptions=warpOptions)
+                if reduced_stack is not None: #* this will return None if final output already made
+    
+                    logging.info('Filling holes with best of the "bad" tiles')
+                    #*MW what is this doing? seems to be doing the QA (eg filling 
+                    # holes with 'bad' soilmoisture in order from best to worst of 
+                    # the bad - aka it's doing nothing right now but keep anyways) - update log for more info
+                    # not doing anything eg  np.all(reduced_stack_hole_filled == reduced_stack).values ==> array(True) [but this could also be due to no holes in the first place]
+                    reduced_stack_hole_filled = post_process.fill_holes(
+                                                        tile_grid_ds_bad,
+                                                        reduced_stack,
+                                                        not_passed_qa_datetimes,
+                                                        nodata_value,
+                                                        logging)
+                    #*MW temp - should be no 0s
+                    if 0 in reduced_stack_hole_filled.data:
+                        import pdb; pdb.set_trace()
+                    
+                    #*MW - edits to fix warp vs nonwarp issues (changing filename; writing nodata; passing compress correctly)
+                    # actually set nodata value before writing to tif - TODO - make nodata values consistent
+                    reduced_stack_hole_filled.rio.write_nodata(nodata_value,
+                                                                   inplace=True)
+                    unwarped_tile = str(output_mode_filename).replace('.tif', 
+                                                                    '-temp.tif')
+                    logging.info(f'Writing unwarped to .tif: {str(unwarped_tile)}') 
+                    reduced_stack_hole_filled.rio.to_raster(str(unwarped_tile),
+                                                            # dtype=np.uint32,
+                                                            dtype = np.uint8,
+                                                            compress='lzw')
+                    
+                    creationOptions = ['COMPRESS=LZW']
+                    logging.info(f'Writing warped to .tif: {output_mode_filename}')
+                    _ = gdal.Warp(str(output_mode_filename), str(unwarped_tile),
+                                                creationOptions=creationOptions)
+
+                    del reduced_stack, reduced_stack_hole_filled
+  
+            #*MW temp call binary % occurence calculations
+            if self.conf.calculate_binary_stats:
+                # import pdb; pdb.set_trace()
+                logging.info('Calculating binary class frequency outputs')
+
+                binary_calc = 'pct' # 'min', 'median', 'max'
+                output_binary_filename = str(output_mode_filename).replace(\
+                                       '.mode.tif', f'.class-{binary_calc}.tif')
+                # get the classes from config
+                composite_classes = list(self.conf.composite_classes.values())
+                #*MW TD - should we do anything with the 'tile_grid_ds_bad'? for now just do good or use
+                binary_stack = Composite.calculate_binary_class_stats('pct',
+                                                    tile_grid_use,
+                                                    Path(output_binary_filename),
+                                                    overwrite=overwrite,
+                                                    nodata=nodata_value,
+                                                    # gpu=True, #*MW
+                                                    class_values= composite_classes,                
+                                                    gpu=True,
+                                                    )
+                
+                if binary_stack is not None: #* if final output tif not yet made
+                    binary_stack.rio.write_nodata(nodata_value, inplace=True)
+                    unwarped_bin = str(output_binary_filename).replace('.tif', 
+                                                                    '-temp.tif')
+                    logging.info(f'Writing unwarped to .tif: {str(unwarped_bin)}') 
+                    binary_stack.rio.to_raster(str(unwarped_bin), 
+                                               dtype = np.uint8, compress='lzw')
+                    
+                    creationOptions = ['COMPRESS=LZW']
+                    logging.info(f'Writing warped to .tif: {output_binary_filename}')
+                    _ = gdal.Warp(str(output_binary_filename), 
+                            str(unwarped_bin), creationOptions=creationOptions)
+                    
+                if not self.conf.post_process_combine:
+                    del binary_stack # delete iff not combingin
+                    
+            #*MW - temp approach to calculate nobservations
+            output_nobs_filename = str(output_mode_filename).replace('.mode.tif', 
+                                                           '.nobservations.tif')
+            
+            if self.conf.calculate_nobservations and \
+                        (overwrite or not Path(output_nobs_filename).exists()):
+                
+                logging.info('Calculating nobservations')
+                
+                nobs_array = (tile_grid_ds_good != nodata_value).sum(dim='time')
+                nobs_array += (tile_grid_ds_bad != nodata_value).sum(dim='time')
+
+                nobs_array.rio.write_nodata(nodata_value, inplace=True)
+                
+                unwarped_nobs = output_nobs_filename.replace('.tif', '-temp.tif')
+                logging.info(f'Writing unwarped to: {str(unwarped_nobs)}') 
+                nobs_array.rio.to_raster(str(unwarped_nobs), dtype = np.uint8,
+                                                                compress='lzw')
+                logging.info(f'Writing nobservations to .tif: {output_nobs_filename}')
+                _ = gdal.Warp(str(output_nobs_filename), str(unwarped_nobs),
+                                            creationOptions=['COMPRESS=LZW'])
+
+                del nobs_array
+
+            #*TD - keep here?
+            if self.conf.post_process_combine:
+                pass
+                # create output dir
+                # check if output existsif not overwrite
+                # check is binary_stack exists
+                # if not, caclulate it (see above)
+                # call composite.post_process_combine
+                # save
+
+            gc.collect()
+
+
         return
 
     def soilMoistureQA(self, tileDF):
@@ -353,6 +576,7 @@ class LandCoverCompositePipeline(object):
         badDF = tileDF[badSoilMoisture]
         badDF = badDF.sort_values(by='soilM_median')
         return goodDF, badDF
+
 
 # -----------------------------------------------------------------------------
 # Invoke the main
