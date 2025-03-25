@@ -19,9 +19,11 @@ end_year: 2015
 # landcover_suffix: suffix of the product raster filenames
 # cloudmask_dir: cloud mask directory where outputs reside
 # cloudmask_suffix: suffix of the product raster filenames
-landcover_dir: '/explore/nobackup/projects/3sl/development/cnn_landcover/accuracy-increase-ethiopia/6class-global-standardization-256-4band-v12/results/${region}'
+# landcover_dir: '/explore/nobackup/projects/3sl/development/cnn_landcover/accuracy-increase-ethiopia/6class-global-standardization-256-4band-v12/results/${region}'
+landcover_dir: '/explore/nobackup/projects/3sl/development/cnn_landcover/accuracy-increase-ethiopia/6class-global-standardization-256-4band-v12/results/Amhara-MS_trim_epsg32637'
 landcover_suffix: '-toa.6class'
-cloudmask_dir: '/explore/nobackup/projects/3sl/products/cloudmask/v2/${region}'
+# cloudmask_dir: '/explore/nobackup/projects/3sl/products/cloudmask/v2/${region}'
+cloudmask_dir: '/explore/nobackup/projects/3sl/products/cloudmask/v2/Amhara-MS_epsg32637'
 cloudmask_suffix: '-toa.cloudmask'
 
 #------------------------------------------------------------------------------------
@@ -38,13 +40,15 @@ grid_filename: '/explore/nobackup/projects/3sl/auxiliary/Shapefiles/${region}_gr
 footprints_filename: '${output_dir}/${region}_M1BS_griddedToa.gpkg'
 metadata_filename: '${output_dir}/${region}_M1BS_griddedToa_metadata.gpkg'
 
-#--------------------------------------------
-# wooten additions
-#--------------------------------------------
-# *MW added to filter images - #*TD make more flexible for months and other filters later
-# Set to False if we do not want to filter
+#------------------------------------------------------------------------------------
+# Filtering
+#------------------------------------------------------------------------------------
+# stats_list: default stats, Varies for task/input .shp
+stats_list:
+  - 'median'
+
+# filter_months: filtering inputs by month, set to False if we do not want to filter
 filter_months: False
-# These must be set if above is True
 filter_name: '11-05'
 remove_months:
   - 6
@@ -53,107 +57,64 @@ remove_months:
   - 9
   - 10
 
-#*MW added to skip this
 soil_moisture_qa: False
 fill_value: 255
 burn_area_value: 15
 
-#*MW overwrite mode/nobs/class output tifs (not zarrs)
-overwrite_tifs: True
-overwrite_zarrs: True
 
-#*MW options to run
+# calculate_nobservations: generate num observations rasters
+# calculate_mode_composite: generate mode composites
+# calculate_binary_stats: produce binary class frequency of occurence (%) outputs (or others)
+# binary_stats: stats to include in the class frequency of occurrence outputs
 calculate_nobservations: True
-# calc_nobs_only: True #*MW temp
 calculate_mode_composite: True
-# if True, produce binary class frequency of occurence (%) outputs (or others)
 calculate_binary_stats: True
 binary_stats:
   - 'pct'
   - 'max'
   - 'median'
 
-#--------------------------------------------
-# composite post-processing - for now, establish rules for combining class-pct outputs
-# for now we can do this here but later might separate so we can combine filtered and unfiltered indiv classes
-#--------------------------------------------
-#*MW not yet implemented 
-# the below dictionary corresponds to the thresholds and orders for each class-pct
-# eg {0: 1, 1: 33, 2: 25} means output will be combined with other >=1 % on bottom, then tree/shrub >= 33%, then crop >=25%
-post_process_combine: True
-# Outputs will be stored in epoch/_combined_{combine_name}
-combine_name: 'test1'
-combine_classes:
-  0: 1
-  1: 25
-  2: 25
-
-#--------------------------------------------
+#------------------------------------------------------------------------------------
 # general
-#--------------------------------------------
-
-
-
-
-
-
+#------------------------------------------------------------------------------------
 # EPSG for the composite and shapefiles
 epsg: 'EPSG:32637'
 
-
-
-#--------------------------------------------
+#------------------------------------------------------------------------------------
 # build_footprints
-#--------------------------------------------
-
-
-
-
-
+#------------------------------------------------------------------------------------
 
 # input column to add to the file
 input_column_field: toa_path
 
-#--------------------------------------------
+#------------------------------------------------------------------------------------
 # extract_metadata
-#--------------------------------------------
+#------------------------------------------------------------------------------------
+metadata_fields:
+  - all_touched
+  # - soil_moisture
+
 join_cols:
-#  - 'tile'
   - 'strip_id'
 
 date_column_field: date
 date_column_field_format: '%Y%m%d'
 
+#------------------------------------------------------------------------------------
+# composite
+#------------------------------------------------------------------------------------
 use_dask: True
 n_partitions: 1000
 scheduler: 'processes'
 
-# default stats, Varies for task/input .shp
-stats_list:
-  - 'median'
-
-metadata_fields:
-  - all_touched
-  # - soil_moisture
-
-
-
-# projectDir  = '/explore/nobackup/projects/3sl'
-# self.auxDir      = os.path.join(self.projectDir, 'auxiliary')
-# self.productDir  = os.path.join(self.projectDir, 'products')
-# monthly_soil_moisture_filename: '/explore/nobackup/projects/3sl/auxiliary/SoilMoisture_0-10cm/wa_monthly_fldas_soilmoi00_10cm_tavg_<date>.tif'
-#--------------------------------------------
-# composite
-#--------------------------------------------
+# overwrite mode/nobs/class output tifs (not zarrs)
+overwrite_tifs: True
+overwrite_zarrs: True
 
 test_name: 'qaTest1'
 model_name: 'otcb.v11'
 grid_cell_name_pre_str: '${region}.M1BS'
-
 datetime_column: 'datetime'
-
-
-
 
 composite_fields:
   - landcover
@@ -167,3 +128,19 @@ composite_classes:
   3: 3
   4: 4
   5: 5
+
+#------------------------------------------------------------------------------------
+# postprocessing
+#------------------------------------------------------------------------------------
+# composite post-processing - for now, establish rules for combining class-pct outputs
+# for now we can do this here but later might separate so we can combine filtered and unfiltered indiv classes
+# not yet implemented 
+# the below dictionary corresponds to the thresholds and orders for each class-pct
+# eg {0: 1, 1: 33, 2: 25} means output will be combined with other >=1 % on bottom, then tree/shrub >= 33%, then crop >=25%
+post_process_combine: True
+# Outputs will be stored in epoch/_combined_{combine_name}
+combine_name: 'test1'
+combine_classes:
+  0: 1
+  1: 25
+  2: 25

@@ -22,9 +22,7 @@ Ethiopia LCLUC using WorldView imagery
 
 ## Explore/ADAPT Basic Information
 
-
-
-## Cloud Masking
+### Cloud Masking
 
 NOTE: these instructions need to be updated with the new vhr-cloudmask software
 developed by the team. Overall example to run cloud masking:
@@ -39,7 +37,7 @@ Additional example on how to run cloud masking:
 singularity exec --env PYTHONPATH="/explore/nobackup/people/jacaraba/development/vhr-cloudmask:/explore/nobackup/people/jacaraba/development/tensorflow-caney" --nv -B $NOBACKUP,/explore/nobackup/people,/explore/nobackup/projects /explore/nobackup/projects/ilab/containers/vhr-cloudmask.sif python /explore/nobackup/people/jacaraba/development/vhr-cloudmask/vhr_cloudmask/view/cloudmask_cnn_pipeline_cli.py -o '/explore/nobackup/projects/3sl/products/cloudmask/v2' -r '/explore/nobackup/projects/hls/EVHR/Amhara-MS/*-toa.tif' -s predict
 ```
 
-## Compositing
+### Compositing
 
 After we generate predictions for the entire study area, we need to proceed to create composites. Below you will find the documentation to perform the compositing steps. 
 This pipeline has 3 main steps:
@@ -50,22 +48,75 @@ This pipeline has 3 main steps:
 
 Below you will find examples on how to run each one of these.
 
-### Build footprints
+#### Build footprints
+
+To generate the initial footprints that match the tiles with the grid information (including an example output):
 
 ```bash
-singularity exec --env PYTHONPATH="/explore/nobackup/people/jacaraba/development/vhr-composite:/explore/nobackup/people/jacaraba/development/ethiopia-lcluc-tensorflow" --nv -B $NOBACKUP,/lscratch,/explore/nobackup/people,/explore/nobackup/projects,/panfs/ccds02/nobackup/projects /lscratch/jacaraba/container/tensorflow-caney python /explore/nobackup/people/jacaraba/development/ethiopia-lcluc-tensorflow/ethiopia_lcluc_tensorflow/view/landcover_composite_pipeline_cli.py -c /explore/nobackup/people/jacaraba/development/ethiopia-lcluc-tensorflow/projects/composite/configs/dev/composite_ethiopia_epoch1.yaml -s build_footprints
+[jacaraba@gpu011 ~]$ singularity exec --env PYTHONPATH="/explore/nobackup/people/jacaraba/development/vhr-composite:/explore/nobackup/people/jacaraba/development/ethiopia-lcluc-tensorflow" --nv -B $NOBACKUP,/lscratch,/explore/nobackup/people,/explore/nobackup/projects,/panfs/ccds02/nobackup/projects /lscratch/jacaraba/container/tensorflow-caney python /explore/nobackup/people/jacaraba/development/ethiopia-lcluc-tensorflow/ethiopia_lcluc_tensorflow/view/landcover_composite_pipeline_cli.py -c /explore/nobackup/people/jacaraba/development/ethiopia-lcluc-tensorflow/projects/composite/configs/dev/composite_ethiopia_epoch1.yaml -s build_footprints
+WARNING: underlay of /etc/localtime required more than 50 (116) bind mounts
+WARNING: underlay of /usr/bin/nvidia-smi required more than 50 (666) bind mounts
+15:4: not a valid test operator:
+15:4: not a valid test operator: 12.6
+21:4: not a valid test operator: (
+21:4: not a valid test operator: 570.124.06
+2025-03-25 14:12:22; INFO; Output logs sent to: /explore/nobackup/projects/ilab/scratch/jacaraba/ethiopia/cnn_landcover_composite/Amhara-1.0/2009.2015/2009.2015.log
+2025-03-25 14:12:22; INFO; Created output dir: /explore/nobackup/projects/ilab/scratch/jacaraba/ethiopia/cnn_landcover_composite/Amhara-1.0/2009.2015
+2025-03-25 14:12:22; INFO; Saved config file to: /explore/nobackup/projects/ilab/scratch/jacaraba/ethiopia/cnn_landcover_composite/Amhara-1.0/2009.2015
+2025-03-25 14:12:22; INFO; Output logs sent to: /explore/nobackup/projects/ilab/scratch/jacaraba/ethiopia/cnn_landcover_composite/Amhara-1.0/2009.2015/build_footprints.log
+2025-03-25 14:12:22; INFO; Building footprints
+2025-03-25 14:12:22; INFO; Found 2144 tifs to process.
+2025-03-25 14:12:43; INFO; Created 2,144 records
+2025-03-25 14:12:43; INFO; Saved /explore/nobackup/projects/ilab/scratch/jacaraba/ethiopia/cnn_landcover_composite/Amhara-1.0/Amhara_M1BS_griddedToa.gpkg.
+2025-03-25 14:12:43; INFO; Adding base fields to /explore/nobackup/projects/ilab/scratch/jacaraba/ethiopia/cnn_landcover_composite/Amhara-1.0/Amhara_M1BS_griddedToa.gpkg
+2025-03-25 14:12:43; INFO; Adding xml_path
+2025-03-25 14:12:43; INFO; Adding strip_id
+2025-03-25 14:12:43; INFO; Adding sensor
+2025-03-25 14:12:43; INFO; Adding spec_type
+2025-03-25 14:12:43; INFO; Adding catalog_id
+2025-03-25 14:12:43; INFO; Adding date
+2025-03-25 14:12:43; INFO; Adding year
+2025-03-25 14:12:43; INFO; Adding month
+2025-03-25 14:12:43; INFO; Adding day
+2025-03-25 14:12:43; INFO; Adding acq_time
+2025-03-25 14:13:03; INFO; Created 2,144 records
+2025-03-25 14:13:04; INFO; Adding acquisition geom from data to /explore/nobackup/projects/ilab/scratch/jacaraba/ethiopia/cnn_landcover_composite/Amhara-1.0/Amhara_M1BS_griddedToa.gpkg
+2025-03-25 14:14:45; INFO; Created 2,144 records
+2025-03-25 14:14:45; INFO; Updated /explore/nobackup/projects/ilab/scratch/jacaraba/ethiopia/cnn_landcover_composite/Amhara-1.0/Amhara_M1BS_griddedToa.gpkg.
+2025-03-25 14:14:45; INFO; Adding region
+2025-03-25 14:14:46; INFO; Adding grid metadata
+2025-03-25 14:14:47; INFO; Created 39,367 records
+2025-03-25 14:14:47; INFO; Updated /explore/nobackup/projects/ilab/scratch/jacaraba/ethiopia/cnn_landcover_composite/Amhara-1.0/Amhara_M1BS_griddedToa.gpkg.
+2025-03-25 14:14:47; INFO; Took 2.42 min.
 ```
 
-### Extract metadata
+#### Extract metadata
+
+To generate the shapefile with metadata for each strip (including an example output):
 
 ```bash
-singularity exec --env PYTHONPATH="/explore/nobackup/people/jacaraba/development/vhr-composite:/explore/nobackup/people/jacaraba/development/ethiopia-lcluc-tensorflow" --nv -B $NOBACKUP,/lscratch,/explore/nobackup/people,/explore/nobackup/projects /explore/nobackup/projects/ilab/containers/tensorflow-caney-2023.05 python /explore/nobackup/people/jacaraba/development/ethiopia-lcluc-tensorflow/ethiopia_lcluc_tensorflow/view/landcover_composite_pipeline_cli.py -c /explore/nobackup/people/jacaraba/development/ethiopia-lcluc-tensorflow/projects/composite/configs/composite_ethiopia_epoch1.yaml -s extract_metadata
+[jacaraba@gpu011 ~]$ singularity exec --env PYTHONPATH="/explore/nobackup/people/jacaraba/development/vhr-composite:/explore/nobackup/people/jacaraba/development/ethiopia-lcluc-tensorflow" --nv -B $NOBACKUP,/lscratch,/explore/nobackup/people,/explore/nobackup/projects,/panfs/ccds02/nobackup/projects /lscratch/jacaraba/container/tensorflow-caney python /explore/nobackup/people/jacaraba/development/ethiopia-lcluc-tensorflow/ethiopia_lcluc_tensorflow/view/landcover_composite_pipeline_cli.py -c /explore/nobackup/people/jacaraba/development/ethiopia-lcluc-tensorflow/projects/composite/configs/dev/composite_ethiopia_epoch1.yaml -s extract_metadata
+WARNING: underlay of /etc/localtime required more than 50 (116) bind mounts
+WARNING: underlay of /usr/bin/nvidia-smi required more than 50 (666) bind mounts
+15:4: not a valid test operator:
+15:4: not a valid test operator: 12.6
+21:4: not a valid test operator: (
+21:4: not a valid test operator: 570.124.06
+2025-03-25 14:16:02; INFO; Output logs sent to: /explore/nobackup/projects/ilab/scratch/jacaraba/ethiopia/cnn_landcover_composite/Amhara-1.0/2009.2015/2009.2015.log
+2025-03-25 14:16:02; INFO; Created output dir: /explore/nobackup/projects/ilab/scratch/jacaraba/ethiopia/cnn_landcover_composite/Amhara-1.0/2009.2015
+2025-03-25 14:16:02; INFO; Saved config file to: /explore/nobackup/projects/ilab/scratch/jacaraba/ethiopia/cnn_landcover_composite/Amhara-1.0/2009.2015
+2025-03-25 14:16:02; INFO; Output logs sent to: /explore/nobackup/projects/ilab/scratch/jacaraba/ethiopia/cnn_landcover_composite/Amhara-1.0/2009.2015/extract_metadata.log
+2025-03-25 14:16:03; INFO; Reading footprint file /explore/nobackup/projects/ilab/scratch/jacaraba/ethiopia/cnn_landcover_composite/Amhara-1.0/Amhara_M1BS_griddedToa.gpkg
+2025-03-25 14:16:03; INFO; Processing the following metrics: all_touched
+2025-03-25 14:16:04; INFO; Created 39,367 records
+2025-03-25 14:16:05; INFO; Saved /explore/nobackup/projects/ilab/scratch/jacaraba/ethiopia/cnn_landcover_composite/Amhara-1.0/Amhara_M1BS_griddedToa_metadata.gpkg
+2025-03-25 14:16:05; INFO; Took 0.04 min.
 ```
 
-### Compositing
+#### Compositing
 
 ```bash
-singularity exec --env PYTHONPATH="/explore/nobackup/people/jacaraba/development/vhr-composite-jordan-edits:/explore/nobackup/people/jacaraba/development/ethiopia-lcluc-tensorflow" --nv -B $NOBACKUP,/lscratch,/explore/nobackup/people,/explore/nobackup/projects /explore/nobackup/projects/ilab/containers/tensorflow-caney-2023.05 python /explore/nobackup/people/jacaraba/development/ethiopia-lcluc-tensorflow/ethiopia_lcluc_tensorflow/view/landcover_composite_pipeline_cli.py -c /explore/nobackup/people/jacaraba/development/ethiopia-lcluc-tensorflow/projects/composite/configs/composite_ethiopia_epoch1.yaml -t /explore/nobackup/people/jacaraba/development/ethiopia-lcluc-tensorflow/projects/composite/configs/tile_lists/test_tile_0_test.txt -s composite
+singularity exec --env PYTHONPATH="/explore/nobackup/people/jacaraba/development/vhr-composite:/explore/nobackup/people/jacaraba/development/ethiopia-lcluc-tensorflow" --nv -B $NOBACKUP,/lscratch,/explore/nobackup/people,/explore/nobackup/projects,/panfs/ccds02/nobackup/projects /lscratch/jacaraba/container/tensorflow-caney python /explore/nobackup/people/jacaraba/development/ethiopia-lcluc-tensorflow/ethiopia_lcluc_tensorflow/view/landcover_composite_pipeline_cli.py -c /explore/nobackup/people/jacaraba/development/ethiopia-lcluc-tensorflow/projects/composite/configs/dev/composite_ethiopia_epoch1.yaml -t /explore/nobackup/people/jacaraba/development/ethiopia-lcluc-tensorflow/projects/composite/configs/dev/test_1_tiles.txt -s composite
 ```
 
 To run multiple tiles:
