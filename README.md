@@ -20,9 +20,58 @@ Ethiopia LCLUC using WorldView imagery
 - Gonji Subset Data Location: /adapt/nobackup/people/walemu/NASA_NPP/CRPld_Map_Pred_and_Forec/EVHR/Gonji_Subset/5-toas
 ```
 
+## Structure of this Repository
+
+This repository takes care of preprocessing, training, inference, and compositing
+of WorldView imagery for Ethiopia. The different steps are guided by pipelines. There
+are two main pipelines available in this repository:
+
+- Land Cover: generates GeoTIFF predictions of land cover outputs
+- Compositing: takes the outputs from the Land Cover pipeline and generates multi-year composites
+
 ## Explore/ADAPT Basic Information
 
-### Cloud Masking
+1. SSH to ADAPT Login
+
+```bash
+ssh adaptlogin.nccs.nasa.gov
+```
+
+2. SSH to GPU Login
+
+```bash
+ssh gpulogin1
+```
+
+3. Clone above-shrubs repository
+
+Clone the github:
+
+```bash
+git clone https://github.com/nasa-nccs-hpda/ethiopia-lcluc-tensorflow.git
+```
+
+4. Accessing the container
+
+To download a clean version of the container, run the following command:
+
+```bash
+singularity build --sandbox /lscratch/$USER/container/ethiopia-lcluc-tensorflow docker://nasanccs/ethiopia-lcluc-tensorflow:latest
+```
+
+An already downloaded version of the container is location in the Explore HPC cluster under:
+
+```bash
+/explore/nobackup/projects/ilab/containers/ethiopia-lcluc-tensorflow.2025.04
+```
+
+## Workflow Documentation
+
+### Land Cover Outputs Generation
+
+TBD
+
+### Cloud Masking Outputs Generation
 
 NOTE: these instructions need to be updated with the new vhr-cloudmask software
 developed by the team. Overall example to run cloud masking:
@@ -126,26 +175,6 @@ for i in {0..78}; do sbatch --mem-per-cpu=10240 -G1 -c10 -q ilab -t05-00:00:00 -
 ```
 
 ## Legacy Documentation to Fix
-
-### Container
-
-#### Using the container
-
-```bash
-singularity shell -B /att,/lscratch/jacaraba:/tmp --nv nccs-lcluc
-source activate rapids
-```
-
-```bash
-singularity shell --nv -B /lscratch,/explore/nobackup/projects/ilab,/explore/nobackup/projects/3sl,/explore/nobackup/people /lscratch/jacaraba/container/tensorflow-caney
-export PYTHONPATH="/explore/nobackup/people/jacaraba/development/tensorflow-caney:/explore/nobackup/people/jacaraba/development/ethiopia_lcluc_tensorflow"
-```
-
-```bash
-singularity shell --nv -B /explore/nobackup/projects/ilab,/explore/nobackup/projects/3sl,$NOBACKUP,/lscratch,/explore/nobackup/people /lscratch/jacaraba/container/tensorflow-caney
-export PYTHONPATH="/explore/nobackup/people/jacaraba/development/tensorflow-caney"
-cd $NOBACKUP/development/ethiopia-lcluc-tensorflow/ethiopia_lcluc_tensorflow/view/
-```
 
 ### Debugging
 
