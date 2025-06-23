@@ -9,15 +9,21 @@ import argparse
 import omegaconf
 import numpy as np
 import pandas as pd
+import xarray as xr
 import geopandas as gpd
 from osgeo import gdal
 from pathlib import Path
+from dask.diagnostics import ProgressBar
+
 from vhr_composite.model.composite import Composite
 from vhr_composite.model.footprints import Footprints
 from vhr_composite.model.metadata import Metadata
 from vhr_composite.model.utils import TqdmLoggingHandler
 from vhr_composite.model import post_process
-
+from vhr_composite.model.metrics import (
+    calculate_trend_confidence_numba,
+    calculate_distribution_confidence_numba
+)
 
 class LandCoverCompositePipeline(object):
 
@@ -88,6 +94,36 @@ class LandCoverCompositePipeline(object):
         return logger
 
     # -------------------------------------------------------------------------
+    # _run_accelerated_function
+    # -------------------------------------------------------------------------
+    def _run_accelerated_function(
+                self,
+                data_array,
+                function,
+                input_core_dims: str = 'time'
+            ):
+
+        # Apply over (time) dimension for each (y, x)
+        result = xr.apply_ufunc(
+            function,
+            data_array,
+            input_core_dims=[[input_core_dims]],
+            output_core_dims=[[]],
+            vectorize=True,
+            dask='parallelized',
+            dask_gufunc_kwargs={"allow_rechunk": True},
+            output_dtypes=[np.float32]
+        )
+
+        # Result is a 2D DataArray with shape (y, x)
+        # Trigger computation and monitor progress
+        with ProgressBar():
+            result.compute()
+
+        # do it in parallel for speed for more files
+        return result.expand_dims(dim='band', axis=0)
+
+    # -------------------------------------------------------------------------
     # build_footprints
     # -------------------------------------------------------------------------
     def build_footprints(self) -> None:
@@ -146,6 +182,9 @@ class LandCoverCompositePipeline(object):
             f'{tiles_filename} does not exist.'
 
         # Get gdf with strips of interest
+        assert os.path.exists(self.conf.metadata_filename), \
+            f'{self.conf.metadata_filename} does not exist. ' + \
+            f'You need to run the metadata step before composite.'
         metadata_gdf = gpd.read_file(self.conf.metadata_filename)
         logging.info(f'Reading in metadata {self.conf.metadata_filename}')
 
@@ -366,7 +405,7 @@ class LandCoverCompositePipeline(object):
                 bad = pd.DataFrame(columns=metadata_per_tile_fltrd.columns)
 
             logging.info(
-                f'Paths for filtered strips:\n {good['toa_path'].values}')
+                f'Paths for filtered strips:\n {good["toa_path"].values}')
 
             # When filling holes we want to start with the "best" of the bad
             # i.e. the lowest soil moisture first
@@ -567,6 +606,36 @@ class LandCoverCompositePipeline(object):
                                             creationOptions=['COMPRESS=LZW'])
 
                 del nobs_array
+
+            # Calculate confidence metrics - trend
+            if self.conf.calculate_confidence:
+
+                logging.info('Calculating confidence outputs')
+
+                # Remove band since its fixed (size=1)
+                lc_array = tile_grid_use.squeeze(dim='band', drop=True)
+                lc_array = lc_array.chunk({'time': -1, 'y': 500, 'x': 500})
+
+                if 'trend_confidence' in self.conf.confidence_metrics:
+                    logging.info('Calculating trend_confidence outputs')
+                    output_filename = str(output_mode_filename).replace(
+                                       '.mode.tif', '.trendConfidence.tif')
+                    confidence_trend = self._run_accelerated_function(
+                        lc_array, calculate_trend_confidence_numba)
+                    confidence_trend.rio.to_raster(output_filename)
+                    logging.info('Done calculating trend_confidence outputs')
+                    logging.info(f'trend_confidence saved at {output_filename}')
+
+                # Calculate confidence metrics - distribution
+                if 'distribution_confidence' in self.conf.confidence_metrics:
+                    logging.info('Calculating distribution_confidence outputs')
+                    output_filename = str(output_mode_filename).replace(
+                        '.mode.tif', '.distributionConfidence.tif')
+                    confidence_distribution = self._run_accelerated_function(
+                        lc_array, calculate_distribution_confidence_numba)
+                    confidence_distribution.rio.to_raster(output_filename)
+                    logging.info('Done calculating distribution_confidence outputs')
+                    logging.info(f'distribution_confidence saved at {output_filename}')
 
             #*TD - keep here?
             if self.conf.post_process_combine:

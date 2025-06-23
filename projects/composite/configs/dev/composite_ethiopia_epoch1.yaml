@@ -61,7 +61,6 @@ soil_moisture_qa: False
 fill_value: 255
 burn_area_value: 15
 
-
 # calculate_nobservations: generate num observations rasters
 # calculate_mode_composite: generate mode composites
 # calculate_binary_stats: produce binary class frequency of occurence (%) outputs (or others)
@@ -73,6 +72,11 @@ binary_stats:
   - 'pct'
   - 'max'
   - 'median'
+
+calculate_confidence: True
+confidence_metrics:
+  - 'trend_confidence'
+  - 'distribution_confidence'
 
 #------------------------------------------------------------------------------------
 # general
