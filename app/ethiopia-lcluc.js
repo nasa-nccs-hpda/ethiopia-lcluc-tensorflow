@@ -20,8 +20,12 @@ function comparisonImage(assetName) {
 var deaCropland = comparisonImage(
   'DigitalEarthAfrica_crop_mask_2019_Amhara_LCLUcrop0_nonCrop255'
 );
-// Crop is 0; hide non-crop (255) without masking valid crop pixels.
-deaCropland = deaCropland.updateMask(deaCropland.eq(0));
+// Crop is 0. Preserve fractional coverage in the asset's overview mask:
+// replacing it with eq(0) alone can make sparse crop coverage fully opaque.
+// Non-crop codes (8 or 255, depending on the source) remain hidden.
+deaCropland = deaCropland.updateMask(
+  deaCropland.mask().multiply(deaCropland.eq(0))
+);
 
 var worldCover2020 = comparisonImage(
   'ESA_WorldCover_10m_2020_v100_Amhara_reclass'
