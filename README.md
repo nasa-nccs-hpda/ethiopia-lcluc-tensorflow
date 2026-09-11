@@ -8,11 +8,13 @@ This repository provides workflows for CNN and GPU random-forest classification,
 
 ## Explore the land-cover products
 
-The [Earth Engine application](app/ethiopia-lcluc.js) displays GSFC 2 m land cover and observation counts for **2009–2016**, **2018–2022**, and **2017–2024**. Comparison layers include Digital Earth Africa Cropland 2019, ESA WorldCover 2020, ESRI Land Cover 2020, GLAD 2020, and Google Dynamic World 2020, alongside canopy height and validation points.
+**[Open the Amhara Land Cover Explorer](https://gsfc-dsg.projects.earthengine.app/view/ethiopia-lcluc)**
+
+The Earth Engine application displays GSFC 2 m land cover and observation counts for **2009–2016**, **2018–2022**, and **2017–2024**. Comparison layers include Digital Earth Africa Cropland 2019, ESA WorldCover 2020, ESRI Land Cover 2020, GLAD 2020, and Google Dynamic World 2020, alongside canopy height and validation points.
 
 The land-cover products use five classes: **Crop, Tree/Shrub, Grass, Built, and Water**. Layer controls and opacity sliders support comparison; clicking an enabled validation point displays its reference class.
 
-To run the application, open [app/ethiopia-lcluc.js](app/ethiopia-lcluc.js) in the [Earth Engine Code Editor](https://code.earthengine.google.com/) using an account with access to the referenced assets. See the [application guide](docs/APP.md) for asset IDs, class codes, and NoData conventions.
+To run or modify the source code, open [app/ethiopia-lcluc.js](app/ethiopia-lcluc.js) in the [Earth Engine Code Editor](https://code.earthengine.google.com/) using an account with access to the referenced assets. See the [application guide](docs/APP.md) for asset IDs, class codes, and NoData conventions.
 
 ## Installation
 

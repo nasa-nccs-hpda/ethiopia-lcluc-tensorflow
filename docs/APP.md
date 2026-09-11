@@ -1,5 +1,8 @@
 # Amhara Land Cover Explorer
 
+**[Open the public application](https://gsfc-dsg.projects.earthengine.app/view/ethiopia-lcluc)**
+
+Explore the products directly in your browser. The steps below describe running or updating the source code.
 
 ### Run and update the app
 
