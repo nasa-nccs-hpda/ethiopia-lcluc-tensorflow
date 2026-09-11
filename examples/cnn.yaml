@@ -1,0 +1,61 @@
+# Portable version of the archived v12 six-class experiment.
+# Preserve/verify its training label scheme; this is not the five-class app legend.
+experiment_name: 6class-global-standardization-256-4band-v12
+experiment_type: 6class
+data_dir: '${oc.env:ETHIOPIA_OUTPUT}/tiles/${experiment_name}'
+model_dir: '${oc.env:ETHIOPIA_OUTPUT}/models/${experiment_name}'
+seed: 42
+gpu_devices: 0
+mixed_precision: True
+xla: False
+input_bands:
+  - CoastalBlue
+  - Blue
+  - Green
+  - Yellow
+  - Red
+  - RedEdge
+  - NIR1
+  - NIR2
+output_bands:
+  - Blue
+  - Green
+  - Red
+  - NIR1
+substract_labels: False
+normalize: 10000.0
+rescale: None
+expand_dims: True
+tile_size: 256
+include_classes: True
+augment: True
+standardization: 'local'
+batch_size: 128
+n_classes: 6
+test_size: 0.20
+learning_rate: 0.0001
+max_epochs: 6000
+patience: 10
+model: "tfc.networks.unet.unet_batchnorm(nclass=6, input_size=(256, 256, 4),maps=[64, 128, 256, 512, 1024])"
+loss: 'tf.keras.losses.CategoricalCrossentropy()'
+optimizer: tf.keras.optimizers.legacy.Adam
+metrics:
+  - 'tf.keras.metrics.CategoricalAccuracy()'
+  - 'tf.keras.metrics.Recall()'
+  - 'tf.keras.metrics.Precision()'
+  - 'sm.metrics.iou_score'
+callbacks:
+  - "tf.keras.callbacks.ModelCheckpoint(save_best_only=True, mode='max', monitor='val_categorical_accuracy', filepath='${model_dir}/{epoch:02d}-{val_loss:.2f}.hdf5')"
+  - "tf.keras.callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=4)"
+  - "tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=False)"
+  - "tf.keras.callbacks.TerminateOnNaN()"
+  - "tf.keras.callbacks.CSVLogger('${model_dir}/${experiment_name}.csv')"
+  - "tf.keras.callbacks.BackupAndRestore('${model_dir}/backup')"
+window_size: 10000
+pred_batch_size: 32
+inference_overlap: 0.50
+inference_treshold: 0.50
+probability_map: False
+inference_regex_list:
+  - '${oc.env:ETHIOPIA_IMAGES}/*-toa.tif'
+inference_save_dir: '${model_dir}/results'

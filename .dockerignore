@@ -1,0 +1,14 @@
+.git
+data
+*.tif
+*.gpkg
+*.pkl
+*.hdf5
+*.npy
+*.npz
+__pycache__
+*.egg-info
+.pytest_cache
+.ruff_cache
+build
+dist

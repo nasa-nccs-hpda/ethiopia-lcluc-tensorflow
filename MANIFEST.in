@@ -1,0 +1,7 @@
+include README.md
+recursive-include app *.js
+recursive-include examples *.yaml *.json *.csv
+recursive-include docs *.md
+recursive-include tests *.py
+include requirements/Dockerfile
+include slurm/predict.sh

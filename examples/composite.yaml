@@ -1,0 +1,73 @@
+# Portable composite configuration; end_year is inclusive.
+# Class definitions retain the archived six-class example.
+version: 1.0
+region: 'Amhara'
+start_year: 2009
+end_year: 2015
+landcover_dir: '${oc.env:ETHIOPIA_PREDICTIONS}'
+landcover_suffix: '-toa.6class'
+cloudmask_dir: '${oc.env:ETHIOPIA_CLOUDMASKS}'
+cloudmask_suffix: '-toa.cloudmask'
+output_dir: '${oc.env:ETHIOPIA_OUTPUT}/composites/${region}-${version}'
+input_data_regex: '${oc.env:ETHIOPIA_IMAGES}/*-toa.tif'
+grid_filename: '${oc.env:ETHIOPIA_GRID}'
+footprints_filename: '${output_dir}/${region}_M1BS_griddedToa.gpkg'
+metadata_filename: '${output_dir}/${region}_M1BS_griddedToa_metadata.gpkg'
+stats_list:
+  - 'median'
+filter_months: False
+filter_name: '11-05'
+remove_months:
+  - 6
+  - 7
+  - 8
+  - 9
+  - 10
+soil_moisture_qa: False
+fill_value: 255
+burn_area_value: 15
+calculate_nobservations: True
+calculate_mode_composite: True
+calculate_binary_stats: True
+binary_stats:
+  - 'pct'
+  - 'max'
+  - 'median'
+calculate_confidence: True
+confidence_metrics:
+  - 'trend_confidence'
+  - 'distribution_confidence'
+epsg: 'EPSG:32637'
+input_column_field: toa_path
+metadata_fields:
+  - all_touched
+join_cols:
+  - 'strip_id'
+date_column_field: date
+date_column_field_format: '%Y%m%d'
+use_dask: True
+n_partitions: 1000
+scheduler: 'processes'
+overwrite_tifs: False
+overwrite_zarrs: False
+test_name: 'qaTest1'
+model_name: 'otcb.v11'
+grid_cell_name_pre_str: '${region}.M1BS'
+datetime_column: 'datetime'
+composite_fields:
+  - landcover
+  - cloudmask
+  - soil_moisture
+composite_classes:
+  0: 0
+  1: 1
+  2: 2
+  3: 3
+  4: 4
+  5: 5
+post_process_combine: False
+combine_name: 'test1'
+combine_classes:
+  0: 1
+  1: 25
+  2: 25

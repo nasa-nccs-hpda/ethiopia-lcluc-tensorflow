@@ -1,0 +1,2 @@
+data,label,ntiles
+/path/to/image.tif,/path/to/label.tif,3000

@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ethiopia-lcluc-tensorflow"
+version = "0.1.0"
+description = "WorldView land-cover mapping, validation, and compositing for Amhara, Ethiopia"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["omegaconf>=2.3,<3"]
+
+[project.optional-dependencies]
+validation = ["numpy>=1.24", "rasterio>=1.3", "geopandas>=0.14", "scikit-learn>=1.3"]
+test = ["pytest>=7", "ruff>=0.6", "build", "twine"]
+
+[project.scripts]
+ethiopia-cnn = "ethiopia_lcluc_tensorflow.view.landcover_cnn_pipeline_cli:main"
+ethiopia-composite = "ethiopia_lcluc_tensorflow.view.landcover_composite_pipeline_cli:main"
+ethiopia-rf = "ethiopia_lcluc_tensorflow.view.landcover_rf_pipeline_cli:main"
+ethiopia-validate = "ethiopia_lcluc_tensorflow.view.validation_cli:main"
+
+[project.urls]
+Repository = "https://github.com/nasa-nccs-hpda/ethiopia-lcluc-tensorflow"
+
+[tool.setuptools.packages.find]
+include = ["ethiopia_lcluc_tensorflow*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff.lint]
+select = ["E9", "F63", "F7", "F82"]
