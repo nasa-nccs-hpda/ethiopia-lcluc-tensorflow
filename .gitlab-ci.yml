@@ -1,20 +1,11 @@
-variables:
-  CONTAINER_NAME: "$CI_PROJECT_NAME-container" # container name, e.g. mycontainer
-  CONFIGURATION_LOCATION: "$CI_PROJECT_DIR/container/Dockerfile" # container configuration, e.g. packages/Dockerfile
-  CONTAINER_VERSION: "latest" # container version, e.g. 1.0.0
+stages: [test]
 
-build_docker_container:
-  stage: build
-  tags:
-    - build
-    - push
-  image:
-    name: gitlab.nccs.nasa.gov:5050/nccs-ci/nccs-containers/gcc/nccs-centos7-gcc8
-    entrypoint: [""]
-  allow_failure: false
-  dependencies: []
+cpu_validation:
+  image: python:3.12
+  stage: test
   script:
-    - yum install python3-pip -y
-    - pip3 install hpccm
-
-
+    - python -m pip install '.[validation,test]'
+    - python -m pytest -q
+    - ruff check ethiopia_lcluc_tensorflow tests
+    - python -m build
+    - python -m twine check dist/*

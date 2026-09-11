@@ -9,6 +9,7 @@ test/
 tmp/
 mlruns/
 output/
+data/
 
 # Ignore compiled files
 __pycache__/
@@ -39,3 +40,10 @@ data/
 adapt-data/
 
 # EOF
+
+# Local development environments and checks
+.venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/

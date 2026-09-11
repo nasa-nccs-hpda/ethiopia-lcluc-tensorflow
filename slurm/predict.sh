@@ -1,29 +1,27 @@
-#!/bin/bash
-#SBATCH -t05-00:00:00 -c20 --mem-per-cpu=20G -G1 -J ethiopia --export=ALL -q ilab
-module load singularity
+#!/usr/bin/env bash
+#SBATCH --job-name=ethiopia-predict
+#SBATCH --gres=gpu:1
+#SBATCH --cpus-per-task=10
+#SBATCH --mem=64G
+#SBATCH --time=24:00:00
+set -euo pipefail
 
-# Run tasks sequentially without ‘&’
-# TODO: need to doublecheck that this works fine
-# srun -G1 -n1 singularity exec \
-#    --env PYTHONPATH="$NOBACKUP/development/ethiopia-lcluc-tensorflow:$NOBACKUP/development/tensorflow-caney",PROJ_LIB="/usr/share/proj" \
-#    --nv -B $NOBACKUP,/lscratch,/explore/nobackup/people,/explore/nobackup/projects \
-#    /explore/nobackup/projects/ilab/containers/above-shrubs.2023.07 \
-#    python $NOBACKUP/development/ethiopia-lcluc-tensorflow/ethiopia_lcluc_tensorflow/view/landcover_cnn_pipeline_cli.py \
-#    -c /explore/nobackup/people/jacaraba/development/ethiopia-lcluc-tensorflow/projects/landcover/config/experiments/2023-06-27/global_standardization_256_crop_4band_short-v2.yaml \
-#    -s predict
+# Submit from the repository root:
+# sbatch --export=ALL,ETHIOPIA_CONTAINER=/path/to/image.sif slurm/predict.sh /path/to/run.yaml
+# Override resource directives and partition/account with sbatch arguments.
+: "${ETHIOPIA_CONTAINER:?Set ETHIOPIA_CONTAINER to a compatible container image}"
+if [[ $# -lt 1 ]]; then
+  echo "Usage: $0 CONFIG.yaml [additional CNN CLI arguments]" >&2
+  exit 2
+fi
+ethiopia_config=$1
+shift
+ethiopia_repo=${ETHIOPIA_REPO:-${SLURM_SUBMIT_DIR:-$PWD}}
+# Additional data mounts and source checkouts can be passed through these variables.
+ethiopia_binds="$ethiopia_repo:$ethiopia_repo${ETHIOPIA_BINDS:+,$ETHIOPIA_BINDS}"
+ethiopia_pythonpath="$ethiopia_repo${ETHIOPIA_PYTHONPATH:+:$ETHIOPIA_PYTHONPATH}"
 
-# -c /explore/nobackup/people/jacaraba/development/ethiopia-lcluc-tensorflow/projects/landcover/config/experiments/2023-06-27/global_standardization_256_crop_4band_short-v2.yaml \
-# -c /explore/nobackup/people/jacaraba/development/ethiopia-lcluc-tensorflow/projects/landcover/config/experiments/2023-06-27/global_standardization_256_crop_4band_short.yaml \
-# -c /explore/nobackup/people/jacaraba/development/ethiopia-lcluc-tensorflow/projects/landcover/config/experiments/2023-06-27/global_standardization_256_crop_4band_short-v2.yaml
-
-srun -G1 -n1 singularity exec \
-    --env PYTHONPATH="/explore/nobackup/people/$USER/development/ethiopia-lcluc-tensorflow:/explore/nobackup/people/$USER/development/tensorflow-caney" \
-    --nv -B /explore/nobackup/projects/ilab,/explore/nobackup/projects/3sl,/explore/nobackup/projects/hls,$NOBACKUP,/lscratch,/explore/nobackup/people \
-    /explore/nobackup/projects/ilab/containers/above-shrubs.2023.07 \
-    python /explore/nobackup/people/$USER/development/ethiopia-lcluc-tensorflow/ethiopia_lcluc_tensorflow/view/landcover_cnn_pipeline_cli.py \
-    -c /explore/nobackup/people/jacaraba/development/ethiopia-lcluc-tensorflow/projects/landcover/config/experiments/2023-06-27/global_standardization_256_crop_4band_short-v12.yaml \
-    -s predict
-
-# this worked out fine
-#-c /explore/nobackup/people/jacaraba/development/ethiopia-lcluc-tensorflow/projects/landcover/config/experiments/2023-06-27/global_standardization_256_crop_4band_short-v4_all.yaml \
-# singularity exec --env PYTHONPATH="/explore/nobackup/people/$USER/development/senegal-lcluc-tensorflow:/explore/nobackup/people/$USER/development/tensorflow-caney" --nv -B /explore/nobackup/projects/ilab,/explore/nobackup/projects/3sl,/explore/nobackup/projects/hls,$NOBACKUP,/lscratch,/explore/nobackup/people /explore/nobackup/projects/ilab/containers/above-shrubs.2023.07 python /explore/nobackup/people/$USER/development/senegal-lcluc-tensorflow/senegal_lcluc_tensorflow/view/landcover_cnn_pipeline_cli.py -c /explore/nobackup/people/jacaraba/development/ethiopia-lcluc-tensorflow/projects/landcover/config/experiments/2023-06-27/global_standardization_256_crop_4band_short-v2.yaml -s predict
+srun singularity exec --nv --bind "$ethiopia_binds" --pwd "$ethiopia_repo" \
+  --env "PYTHONPATH=$ethiopia_pythonpath" "$ETHIOPIA_CONTAINER" \
+  python -m ethiopia_lcluc_tensorflow.view.landcover_cnn_pipeline_cli \
+  -c "$ethiopia_config" -s predict "$@"

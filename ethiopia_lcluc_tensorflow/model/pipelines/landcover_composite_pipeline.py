@@ -30,10 +30,11 @@ class LandCoverCompositePipeline(object):
     # -------------------------------------------------------------------------
     # __init__
     # -------------------------------------------------------------------------
-    def __init__(self, config_filename: str):
+    def __init__(self, config_filename: str, overrides=()):
 
         # Configuration file intialization
-        self.conf = omegaconf.OmegaConf.load(config_filename)
+        from ethiopia_lcluc_tensorflow.utils.config import composite_config
+        self.conf = composite_config(config_filename, overrides)
 
         # select output directory based on filter name
         if self.conf.filter_months:
@@ -58,7 +59,8 @@ class LandCoverCompositePipeline(object):
         logging.info(f'Created output dir: {self.conf.output_tif_dir}')
 
         # copy config file to output directory
-        shutil.copy(config_filename, self.conf.output_tif_dir)
+        omegaconf.OmegaConf.save(
+            self.conf, os.path.join(self.conf.output_tif_dir, 'config.yaml'), resolve=True)
         logging.info(f'Saved config file to: {self.conf.output_tif_dir}')
 
     # -------------------------------------------------------------------------
@@ -523,9 +525,7 @@ class LandCoverCompositePipeline(object):
                                                         not_passed_qa_datetimes,
                                                         nodata_value,
                                                         logging)
-                    #*MW temp - should be no 0s
-                    if 0 in reduced_stack_hole_filled.data:
-                        import pdb; pdb.set_trace()
+                    # Code 0 is a valid crop class; never enter a debugger in batch jobs.
                     
                     #*MW - edits to fix warp vs nonwarp issues (changing filename; writing nodata; passing compress correctly)
                     # actually set nodata value before writing to tif - TODO - make nodata values consistent
@@ -660,49 +660,7 @@ class LandCoverCompositePipeline(object):
         return goodDF, badDF
 
 
-# -----------------------------------------------------------------------------
-# Invoke the main
-# -----------------------------------------------------------------------------
+# Use the maintained CLI for direct-module invocation too.
 if __name__ == '__main__':
-
-    # Parse command line arguments
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-c',
-                        '--config',
-                        dest='config',
-                        type=str,
-                        required=True,
-                        help='Path to YAML configuration file')
-    parser.add_argument('-t',
-                        '--tiles-filename',
-                        dest='tiles_filename',
-                        type=str,
-                        required=True,
-                        help='Filename with tiles to process')
-    parser.add_argument(
-                        '-s',
-                        '--step',
-                        type=str,
-                        nargs='*',
-                        required=True,
-                        dest='pipeline_step',
-                        help='Pipeline step to perform',
-                        default=['preprocess', 'composite'],
-                        choices=['preprocess', 'composite'])
-    args = parser.parse_args()
-
-    # Setup timer to monitor script execution time
-    timer = time.time()
-
-    # setup pipeline object
-    pipeline = LandCoverCompositePipeline(args.config)
-
-    # Regression CHM pipeline steps
-    if "preprocess" in args.pipeline_step:
-        pipeline.preprocess()
-    if "composite" in args.pipeline_step:
-        pipeline.composite(args.tiles_filename)
-
-    logging.info(f'Took {(time.time()-timer)/60.0:.2f} min.')
-
-    sys.exit()
+    from ethiopia_lcluc_tensorflow.view.landcover_composite_pipeline_cli import main
+    raise SystemExit(main())

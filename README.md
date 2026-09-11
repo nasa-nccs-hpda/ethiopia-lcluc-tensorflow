@@ -1,228 +1,274 @@
 # Ethiopia LCLUC
 
-Ethiopia LCLUC using WorldView imagery
+WorldView land-cover mapping and multi-year compositing for Amhara, Ethiopia, with a Google Earth Engine (GEE) app for exploring the resulting products and comparison datasets.
 
 [![DOI](https://zenodo.org/badge/527702332.svg)](https://zenodo.org/badge/latestdoi/527702332)
 
+The repository contains TensorFlow CNN preprocessing, training, and prediction workflows; a GPU random-forest workflow; spatial compositing; and the Amhara Land Cover Explorer. Training and compositing depend on external geospatial software and project data on NASA NCCS Explore/ADAPT. The GEE app runs independently against uploaded Earth Engine assets.
 
-## Objectives
+## Repository guide
 
-- LCLUC utilizing random forest algorithm
-- LCLUC utilizing XGBoost algorithm
-- LCLUC utilizing CNN algorithm
-- LCLUC utilizing CNN ensemble algorithm
+| Location | Contents |
+| --- | --- |
+| [app/ethiopia-lcluc.js](app/ethiopia-lcluc.js) | GEE explorer, product controls, legends, and validation-point inspection |
+| [ethiopia_lcluc_tensorflow/view/](ethiopia_lcluc_tensorflow/view/) | CNN, random-forest, and compositing command-line entry points |
+| [ethiopia_lcluc_tensorflow/model/pipelines/](ethiopia_lcluc_tensorflow/model/pipelines/) | CNN prediction/validation and compositing implementations |
+| [projects/landcover/config/experiments/](projects/landcover/config/experiments/) | Dated experiment YAML files and training-data CSV manifests |
+| [projects/composite/configs/](projects/composite/configs/) | Development/production configuration examples and tile lists |
+| [notebooks/](notebooks/) | Dataset preparation, exploratory analysis, and single-/multi-GPU random-forest experiments |
+| [requirements/Dockerfile](requirements/Dockerfile) | Container definition based on `nasanccs/vhr-cloudmask` |
+| [slurm/predict.sh](slurm/predict.sh) | Site-specific GPU inference submission example |
+| [docs/](docs/) | Historical dataset, random-forest, and project notes |
+| [legacy/](legacy/) | Earlier CNN implementations, scripts, and configurations |
+| `data/` | Local rasters and validation vectors; ignored by Git and not supplied by a clone |
+| [tests/](tests/) | CPU validation, configuration, CLI, and inference-locking regression tests |
+| [examples/](examples/) | Portable CNN/composite YAML templates and class/manifest examples |
 
-## Data Catalog
+## Amhara Land Cover Explorer
 
-```bash
-- Project Location: /explore/nobackup/projects/ilab/projects/Ethiopia/LCLUC_Ethiopia
-- Full Domain Data Location: /adapt/nobackup/people/mwooten3/Ethiopia_Woubet/VHR
-- Gonji Subset Data Location: /adapt/nobackup/people/walemu/NASA_NPP/CRPld_Map_Pred_and_Forec/EVHR/Gonji_Subset/5-toas
-```
+### Run and update the app
 
-## Structure of this Repository
+1. Open the [Earth Engine Code Editor](https://code.earthengine.google.com/) with an account and project that can read the assets below.
+2. Copy [app/ethiopia-lcluc.js](app/ethiopia-lcluc.js) into a script, save it, and run it.
+3. Check the layers and validation-point popup in the Code Editor.
+4. To update a hosted app, publish the saved script through Earth Engine's Apps interface. Editing this repository does not update a deployed app automatically. Ensure that the app itself can read the required assets; see the [Earth Engine Apps documentation](https://developers.google.com/earth-engine/guides/apps).
 
-This repository takes care of preprocessing, training, inference, and compositing
-of WorldView imagery for Ethiopia. The different steps are guided by pipelines. There
-are two main pipelines available in this repository:
+The app uses Earth Engine's `ee`, `ui`, and `Map` globals. It is not a standalone browser or Node.js application.
 
-- Land Cover: generates GeoTIFF predictions of land cover outputs
-- Compositing: takes the outputs from the Land Cover pipeline and generates multi-year composites
+### Explore the products
 
-## Explore/ADAPT Basic Information
+The study boundary and **GSFC LCLU 2017–2024** are enabled initially. Other products are available through checkboxes:
 
-1. SSH to ADAPT Login
+- GSFC 2 m land cover for **2009–2016**, **2018–2022**, and **2017–2024**.
+- Observation counts for the same three periods.
+- Aligned/reclassified Digital Earth Africa Cropland 2019, ESA WorldCover 2020, ESRI Land Cover 2020, GLAD 2020, and Google Dynamic World 2020.
+- Meta Canopy Height 1 m and the 2026 validation/reference points.
 
-```bash
-ssh adaptlogin.nccs.nasa.gov
-```
+Comparison rasters sit beneath the GSFC land-cover layers. Enable one comparison at a time and reduce the **LCLU 2017–2024** opacity or turn off the overlying land-cover layers to see it. The shared five-class legend explicitly covers GSFC, ESA, ESRI, GLAD, and Dynamic World. Cropland extent, observation count, canopy height, and reference points have separate legends.
 
-2. SSH to GPU Login
+Enable **Validation / Reference Points 2026**, then click a point to open a bottom-left popup with its class name, numeric `val_class`, and original `Land_Use` label. The nearest point within an eight-pixel click tolerance is highlighted in yellow. Close dismisses the popup; disabling the points through the control panel also clears the selection.
 
-```bash
-ssh gpulogin1
-```
+### Classes and NoData
 
-3. Clone above-shrubs repository
+These codes describe the final five-class app products. Historical training datasets and six-class model configurations can use different schemes; check the specific experiment before reusing labels.
 
-Clone the github:
+| Code | Class | Display color |
+| --- | --- | --- |
+| 0 | Crop | `#ffaa00` |
+| 1 | Tree / Shrub | `#267300` |
+| 2 | Grass | `#ffffbe` |
+| 3 | Built | `#730000` |
+| 4 | Water | `#0070ff` |
+
+Local raster inspection found the following values. Validation-point sampling supports the interpretation of codes 0–4, but the GeoTIFFs do not contain embedded class names.
+
+| Comparison product | Displayed values | Masked values in the app |
+| --- | --- | --- |
+| Digital Earth Africa Cropland 2019 | 0 = crop | 255 (non-crop/declared NoData) |
+| ESA WorldCover 2020 | 0–4 | −128 |
+| ESRI Land Cover 2020 | 0–4 | 7 and 15 |
+| GLAD 2020 | 0–4; this reclassified file is not binary | 15 |
+| Google Dynamic World 2020 | 0–4 | 15 |
+
+ESRI code 7 is treated as NoData for display, in addition to the file's declared NoData value of 15. These masks do not modify the source GeoTIFFs. Crop code 0 remains visible.
+
+### Earth Engine assets
+
+The app reads the following assets under `projects/gsfc-dsg/assets/`:
+
+| Product | Asset name |
+| --- | --- |
+| LCLU 2009–2016 | `Amhara_LCLU_5class_2009_2016_2m_native_cog_clean_cog` |
+| LCLU 2018–2022 | `Amhara_LCLU_5class_2018_2022_2m_native_cog_clean_cog` |
+| LCLU 2017–2024 | `Amhara_LCLU_5class_2017_2024_2m_native_cog_clean_cog` |
+| Observations 2009–2016 | `Amhara_nobservations_2009_2016_2m_native_cog_clean_cog` |
+| Observations 2018–2022 | `Amhara_nobservations_2018_2022_2m_native_cog_clean_cog` |
+| Observations 2017–2024 | `Amhara_nobservations_2017_2024_2m_native_cog_clean_cog` |
+| Digital Earth Africa | `DigitalEarthAfrica_crop_mask_2019_Amhara_LCLUcrop0_nonCrop255` |
+| ESA WorldCover | `ESA_WorldCover_10m_2020_v100_Amhara_reclass` |
+| ESRI | `ESRI_LULC_36P37P_2020_Amhara_reclass` |
+| GLAD | `GLAD2020_Amhara_reclass` |
+| Dynamic World | `Google_DynamicWorld_LULC_2020_mode_2_reclass` |
+| Validation points | `Amhara_validation_points_2026` |
+
+Additional dependencies are the boundary asset `projects/ee-jacaraba-ethiopia/assets/boundaries/Amhara_Study_Area_Boundary_4buf10km_EPSG_GEE`, canopy-height collection `projects/sat-io/open-datasets/facebook/meta-canopy-height`, and palette module `users/gena/packages:palettes`.
+
+The comparison images use their first band. Validation points are loaded as a FeatureCollection and filtered to the study boundary. The original ESA WorldCover catalog layer and GLAD Cropland 2019 layer have been replaced by the project assets above.
+
+## Python environment and data
+
+Clone the repository and run Python commands from its root:
 
 ```bash
 git clone https://github.com/nasa-nccs-hpda/ethiopia-lcluc-tensorflow.git
+cd ethiopia-lcluc-tensorflow
 ```
 
-4. Accessing the container
+Use a project-compatible Linux geospatial environment, with NVIDIA/CUDA support for the GPU workflows. The source imports these main dependencies:
 
-To download a clean version of the container, run the following command:
+| Workflow | Dependencies |
+| --- | --- |
+| CNN | `tensorflow`, `tensorflow_caney`, `segmentation_models`, OmegaConf, Rasterio, GeoPandas, NumPy, Xarray, Rioxarray, scikit-learn |
+| Compositing | `vhr_composite`, GDAL, Dask, OmegaConf, GeoPandas, NumPy, Pandas, Xarray and the supporting geospatial stack |
+| GPU random forest | CuPy, cuDF, cuML, GDAL, Rasterio, Xarray, Pandas, NumPy, Joblib |
+
+Install the package and CPU validation dependencies with Python 3.10 or newer:
 
 ```bash
-singularity build --sandbox /lscratch/$USER/container/ethiopia-lcluc-tensorflow docker://nasanccs/ethiopia-lcluc-tensorflow:latest
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install -e '.[validation,test]'
+ethiopia-validate --help
 ```
 
-An already downloaded version of the container is location in the Explore HPC cluster under:
+The installed commands are `ethiopia-cnn`, `ethiopia-composite`, `ethiopia-rf`, and `ethiopia-validate`. Help works without GPU libraries. CNN, RF, and compositing execution still require the compatible external stacks listed above; they are deliberately not installed by the lightweight validation extra. Record the tested upstream commits and GPU environment for a publication run. See [publication and reproducibility notes](docs/PUBLICATION.md).
 
-```bash
+The previous project setup documented this Explore container path:
+
+```text
 /explore/nobackup/projects/ilab/containers/ethiopia-lcluc-tensorflow.2025.04
 ```
 
-## Workflow Documentation
-
-### Land Cover Outputs Generation
-
-TBD
-
-### Cloud Masking Outputs Generation
-
-NOTE: these instructions need to be updated with the new vhr-cloudmask software
-developed by the team. Overall example to run cloud masking:
+Confirm its availability and dependencies on the cluster before use. For a configured container, a GPU invocation can use this pattern (replace the paths):
 
 ```bash
-for i in {0..64}; do sbatch --mem-per-cpu=10240 -G1 -c10 -q ilab -t05-00:00:00 -J clouds --wrap="singularity exec --env PYTHONPATH=\"/explore/nobackup/people/jacaraba/development/vhr-cloudmask:/explore/nobackup/people/jacaraba/development/tensorflow-caney\" --nv -B $NOBACKUP,/explore/nobackup/people,/explore/nobackup/projects /explore/nobackup/projects/ilab/containers/vhr-cloudmask.sif python /explore/nobackup/people/jacaraba/development/vhr-cloudmask/vhr_cloudmask/view/cloudmask_cnn_pipeline_cli.py -o '/explore/nobackup/projects/3sl/products/cloudmask/v2' -r '/explore/nobackup/projects/hls/EVHR/Amhara-MS/*-toa.tif' -s predict"; done
+ethiopia_repo="$PWD"
+ethiopia_container=/path/to/compatible-container.sif
+singularity exec --nv \
+  --bind "$ethiopia_repo:/workspace",/explore/nobackup/projects,/lscratch \
+  --pwd /workspace --env PYTHONPATH=/workspace \
+  "$ethiopia_container" \
+  python -m ethiopia_lcluc_tensorflow.view.landcover_cnn_pipeline_cli --help
 ```
 
-Additional example on how to run cloud masking:
+Bind any additional locations referenced by your configuration. If `tensorflow_caney` or `vhr_composite` are external source checkouts rather than installed packages, bind those directories and include their container paths in `PYTHONPATH`.
+
+Source data, model checkpoints, and generated products are not downloaded automatically. Existing configurations reference locations such as:
+
+| Data | Example project location |
+| --- | --- |
+| WorldView TOA scenes | `/explore/nobackup/projects/hls/EVHR/Amhara-MS/` |
+| Land-cover predictions | `/explore/nobackup/projects/3sl/development/cnn_landcover/` |
+| Cloud masks | `/explore/nobackup/projects/3sl/products/cloudmask/v2/` |
+| Auxiliary grids | `/explore/nobackup/projects/3sl/auxiliary/Shapefiles/` |
+| Evaluation rasters and validation database | `/panfs/ccds02/nobackup/projects/3sl/auxiliary/Ethiopia/` |
+
+These are site-specific locations, not public download links. Update configuration paths and output directories for your environment.
+
+## CNN land-cover workflow
+
+The [CNN CLI](ethiopia_lcluc_tensorflow/view/landcover_cnn_pipeline_cli.py) exposes `preprocess`, `train`, `predict`, and `validate`. Preprocessing and training are inherited from `tensorflow_caney`; the local pipeline implements prediction and validation.
+
+Start with [examples/cnn.yaml](examples/cnn.yaml), derived from [the archived v12 configuration](projects/landcover/config/experiments/2023-06-27/global_standardization_256_crop_4band_short-v12.yaml). Set `ETHIOPIA_OUTPUT` and `ETHIOPIA_IMAGES` to your output and imagery directories. Review `data_dir`, `model_dir`, input/output bands, `n_classes`, normalization/standardization, model settings, GPU devices, and inference paths. This example has six output classes and selects Blue, Green, Red, and NIR1 from eight input bands. Despite its filename, its `standardization` setting is `local`; use YAML contents as the source of truth.
+
+Training manifests use the header `data,label,ntiles`, for example:
+
+```csv
+data,label,ntiles
+/path/to/image.tif,/path/to/label.tif,3000
+```
+
+After preparing a configuration and manifest:
 
 ```bash
-singularity exec --env PYTHONPATH="/explore/nobackup/people/jacaraba/development/vhr-cloudmask:/explore/nobackup/people/jacaraba/development/tensorflow-caney" --nv -B $NOBACKUP,/explore/nobackup/people,/explore/nobackup/projects /explore/nobackup/projects/ilab/containers/vhr-cloudmask.sif python /explore/nobackup/people/jacaraba/development/vhr-cloudmask/vhr_cloudmask/view/cloudmask_cnn_pipeline_cli.py -o '/explore/nobackup/projects/3sl/products/cloudmask/v2' -r '/explore/nobackup/projects/hls/EVHR/Amhara-MS/*-toa.tif' -s predict
+python -m ethiopia_lcluc_tensorflow.view.landcover_cnn_pipeline_cli \
+  -c /path/to/experiment.yaml \
+  -d /path/to/training.csv \
+  -s preprocess train
+
+python -m ethiopia_lcluc_tensorflow.view.landcover_cnn_pipeline_cli \
+  -c /path/to/experiment.yaml \
+  -s predict
 ```
 
-### Compositing
+Prediction uses `inference_regex_list` and model-loading settings from the configuration. It writes scene predictions beneath `inference_save_dir`; preprocessing artifacts go beneath `data_dir`, and model artifacts go beneath `model_dir`.
 
-After we generate predictions for the entire study area, we need to proceed to create composites. Below you will find the documentation to perform the compositing steps. 
-This pipeline has 3 main steps:
+Override any YAML setting with repeated `--set KEY=VALUE` arguments, for example `--set model_dir=/path/to/models --set gpu_devices=0`. Resolved settings are saved with the model artifacts. Prediction uses exclusive output locks, closes input rasters, and writes to a temporary raster before renaming a completed output. A killed job can leave a lock; confirm the job has stopped before removing it.
 
-1. Build footprints
-2. Extract metadata
-3. Build composite
+### Validate categorical products on a CPU
 
-Below you will find examples on how to run each one of these.
-
-#### Build footprints
-
-To generate the initial footprints that match the tiles with the grid information (including an example output):
+Run each product separately with explicit raster paths or quoted globs:
 
 ```bash
-[jacaraba@gpu011 ~]$ singularity exec --env PYTHONPATH="/explore/nobackup/people/jacaraba/development/vhr-composite:/explore/nobackup/people/jacaraba/development/ethiopia-lcluc-tensorflow" --nv -B $NOBACKUP,/lscratch,/explore/nobackup/people,/explore/nobackup/projects,/panfs/ccds02/nobackup/projects /lscratch/jacaraba/container/tensorflow-caney python /explore/nobackup/people/jacaraba/development/ethiopia-lcluc-tensorflow/ethiopia_lcluc_tensorflow/view/landcover_composite_pipeline_cli.py -c /explore/nobackup/people/jacaraba/development/ethiopia-lcluc-tensorflow/projects/composite/configs/dev/composite_ethiopia_epoch1.yaml -s build_footprints
-WARNING: underlay of /etc/localtime required more than 50 (116) bind mounts
-WARNING: underlay of /usr/bin/nvidia-smi required more than 50 (666) bind mounts
-15:4: not a valid test operator:
-15:4: not a valid test operator: 12.6
-21:4: not a valid test operator: (
-21:4: not a valid test operator: 570.124.06
-2025-03-25 14:12:22; INFO; Output logs sent to: /explore/nobackup/projects/ilab/scratch/jacaraba/ethiopia/cnn_landcover_composite/Amhara-1.0/2009.2015/2009.2015.log
-2025-03-25 14:12:22; INFO; Created output dir: /explore/nobackup/projects/ilab/scratch/jacaraba/ethiopia/cnn_landcover_composite/Amhara-1.0/2009.2015
-2025-03-25 14:12:22; INFO; Saved config file to: /explore/nobackup/projects/ilab/scratch/jacaraba/ethiopia/cnn_landcover_composite/Amhara-1.0/2009.2015
-2025-03-25 14:12:22; INFO; Output logs sent to: /explore/nobackup/projects/ilab/scratch/jacaraba/ethiopia/cnn_landcover_composite/Amhara-1.0/2009.2015/build_footprints.log
-2025-03-25 14:12:22; INFO; Building footprints
-2025-03-25 14:12:22; INFO; Found 2144 tifs to process.
-2025-03-25 14:12:43; INFO; Created 2,144 records
-2025-03-25 14:12:43; INFO; Saved /explore/nobackup/projects/ilab/scratch/jacaraba/ethiopia/cnn_landcover_composite/Amhara-1.0/Amhara_M1BS_griddedToa.gpkg.
-2025-03-25 14:12:43; INFO; Adding base fields to /explore/nobackup/projects/ilab/scratch/jacaraba/ethiopia/cnn_landcover_composite/Amhara-1.0/Amhara_M1BS_griddedToa.gpkg
-2025-03-25 14:12:43; INFO; Adding xml_path
-2025-03-25 14:12:43; INFO; Adding strip_id
-2025-03-25 14:12:43; INFO; Adding sensor
-2025-03-25 14:12:43; INFO; Adding spec_type
-2025-03-25 14:12:43; INFO; Adding catalog_id
-2025-03-25 14:12:43; INFO; Adding date
-2025-03-25 14:12:43; INFO; Adding year
-2025-03-25 14:12:43; INFO; Adding month
-2025-03-25 14:12:43; INFO; Adding day
-2025-03-25 14:12:43; INFO; Adding acq_time
-2025-03-25 14:13:03; INFO; Created 2,144 records
-2025-03-25 14:13:04; INFO; Adding acquisition geom from data to /explore/nobackup/projects/ilab/scratch/jacaraba/ethiopia/cnn_landcover_composite/Amhara-1.0/Amhara_M1BS_griddedToa.gpkg
-2025-03-25 14:14:45; INFO; Created 2,144 records
-2025-03-25 14:14:45; INFO; Updated /explore/nobackup/projects/ilab/scratch/jacaraba/ethiopia/cnn_landcover_composite/Amhara-1.0/Amhara_M1BS_griddedToa.gpkg.
-2025-03-25 14:14:45; INFO; Adding region
-2025-03-25 14:14:46; INFO; Adding grid metadata
-2025-03-25 14:14:47; INFO; Created 39,367 records
-2025-03-25 14:14:47; INFO; Updated /explore/nobackup/projects/ilab/scratch/jacaraba/ethiopia/cnn_landcover_composite/Amhara-1.0/Amhara_M1BS_griddedToa.gpkg.
-2025-03-25 14:14:47; INFO; Took 2.42 min.
+ethiopia-validate \
+  --reference data/Amhara_validation_database__jun2026_tilecorrected_tilealigned.gpkg \
+  --predictions data/GLAD2020_Amhara_reclass.tif \
+  --output-dir output/validation/glad2020
 ```
 
-#### Extract metadata
+For ESRI, add `--ignore-values 7` to match the app's additional NoData mask. The default reference field is `val_class`; use `--label-column Land_Use` for text labels. `--class-names examples/classes-five.json` explicitly selects the five-class scheme; supply another JSON mapping for other schemes. `--label-map` accepts a JSON mapping from text labels to class codes.
 
-To generate the shapefile with metadata for each strip (including an example output):
+The validator writes sampled `points.gpkg` and `metrics.json`, including evaluated/excluded counts, confusion matrix, accuracy, and per-class metrics. It respects each raster's CRS and masks, and rejects overlapping predictions unless you choose `--overlap first` or `--overlap last`. Existing results require `--overwrite`. See [metric definitions and limitations](docs/PUBLICATION.md#validation-outputs).
+
+The CNN CLI also supports `-s validate` with `-vd`, `--validation-predictions`, and `--validation-output-dir` (or the corresponding `validation_database`, `validation_predictions`, and `validation_output_dir` YAML settings), without loading TensorFlow. Use the standalone validator for custom label/class mappings. The GEE point popup displays reference attributes; it does not run accuracy assessment.
+
+[slurm/predict.sh](slurm/predict.sh) accepts a configuration path and uses `ETHIOPIA_CONTAINER`, optional `ETHIOPIA_REPO`, `ETHIOPIA_BINDS`, and `ETHIOPIA_PYTHONPATH` environment variables. Submit from the repository root; set partition/account and resource requests for your cluster. Load Singularity before submission if your site requires a module.
 
 ```bash
-[jacaraba@gpu011 ~]$ singularity exec --env PYTHONPATH="/explore/nobackup/people/jacaraba/development/vhr-composite:/explore/nobackup/people/jacaraba/development/ethiopia-lcluc-tensorflow" --nv -B $NOBACKUP,/lscratch,/explore/nobackup/people,/explore/nobackup/projects,/panfs/ccds02/nobackup/projects /lscratch/jacaraba/container/tensorflow-caney python /explore/nobackup/people/jacaraba/development/ethiopia-lcluc-tensorflow/ethiopia_lcluc_tensorflow/view/landcover_composite_pipeline_cli.py -c /explore/nobackup/people/jacaraba/development/ethiopia-lcluc-tensorflow/projects/composite/configs/dev/composite_ethiopia_epoch1.yaml -s extract_metadata
-WARNING: underlay of /etc/localtime required more than 50 (116) bind mounts
-WARNING: underlay of /usr/bin/nvidia-smi required more than 50 (666) bind mounts
-15:4: not a valid test operator:
-15:4: not a valid test operator: 12.6
-21:4: not a valid test operator: (
-21:4: not a valid test operator: 570.124.06
-2025-03-25 14:16:02; INFO; Output logs sent to: /explore/nobackup/projects/ilab/scratch/jacaraba/ethiopia/cnn_landcover_composite/Amhara-1.0/2009.2015/2009.2015.log
-2025-03-25 14:16:02; INFO; Created output dir: /explore/nobackup/projects/ilab/scratch/jacaraba/ethiopia/cnn_landcover_composite/Amhara-1.0/2009.2015
-2025-03-25 14:16:02; INFO; Saved config file to: /explore/nobackup/projects/ilab/scratch/jacaraba/ethiopia/cnn_landcover_composite/Amhara-1.0/2009.2015
-2025-03-25 14:16:02; INFO; Output logs sent to: /explore/nobackup/projects/ilab/scratch/jacaraba/ethiopia/cnn_landcover_composite/Amhara-1.0/2009.2015/extract_metadata.log
-2025-03-25 14:16:03; INFO; Reading footprint file /explore/nobackup/projects/ilab/scratch/jacaraba/ethiopia/cnn_landcover_composite/Amhara-1.0/Amhara_M1BS_griddedToa.gpkg
-2025-03-25 14:16:03; INFO; Processing the following metrics: all_touched
-2025-03-25 14:16:04; INFO; Created 39,367 records
-2025-03-25 14:16:05; INFO; Saved /explore/nobackup/projects/ilab/scratch/jacaraba/ethiopia/cnn_landcover_composite/Amhara-1.0/Amhara_M1BS_griddedToa_metadata.gpkg
-2025-03-25 14:16:05; INFO; Took 0.04 min.
+export ETHIOPIA_CONTAINER=/path/to/compatible-container.sif
+export ETHIOPIA_BINDS=/path/to/data,/path/to/output
+sbatch slurm/predict.sh /path/to/experiment.yaml
 ```
 
-#### Compositing
+## Cloud masks and compositing
+
+Cloud-mask generation is handled by the external `vhr-cloudmask` software. This repository consumes those masks alongside land-cover predictions; it does not provide a cloud-mask generation CLI.
+
+Use [examples/composite.yaml](examples/composite.yaml) as a starting point. Set `ETHIOPIA_IMAGES`, `ETHIOPIA_PREDICTIONS`, `ETHIOPIA_CLOUDMASKS`, `ETHIOPIA_GRID`, and `ETHIOPIA_OUTPUT` for your environment. Set the imagery, grid, land-cover, cloud-mask, metadata, and output locations, plus the desired years and class definitions. A tile-list file contains one grid tile ID per line, such as `h00v00`; examples are in [tile_lists/](projects/composite/configs/tile_lists/).
+
+Run the stages in order:
 
 ```bash
-singularity exec --env PYTHONPATH="/explore/nobackup/people/jacaraba/development/vhr-composite:/explore/nobackup/people/jacaraba/development/ethiopia-lcluc-tensorflow" --nv -B $NOBACKUP,/lscratch,/explore/nobackup/people,/explore/nobackup/projects,/panfs/ccds02/nobackup/projects /lscratch/jacaraba/container/tensorflow-caney python /explore/nobackup/people/jacaraba/development/ethiopia-lcluc-tensorflow/ethiopia_lcluc_tensorflow/view/landcover_composite_pipeline_cli.py -c /explore/nobackup/people/jacaraba/development/ethiopia-lcluc-tensorflow/projects/composite/configs/dev/composite_ethiopia_epoch1.yaml -t /explore/nobackup/people/jacaraba/development/ethiopia-lcluc-tensorflow/projects/composite/configs/dev/test_1_tiles.txt -s composite
+python -m ethiopia_lcluc_tensorflow.view.landcover_composite_pipeline_cli \
+  -c /path/to/composite.yaml \
+  -s build_footprints extract_metadata
+
+python -m ethiopia_lcluc_tensorflow.view.landcover_composite_pipeline_cli \
+  -c /path/to/composite.yaml \
+  -t projects/composite/configs/tile_lists/amhara_tiles_0.txt \
+  -s composite
 ```
 
-To run multiple tiles:
+`build_footprints` associates imagery with the grid; `extract_metadata` prepares scene metadata; `composite` processes the requested tiles. Depending on configuration, outputs include mode land-cover composites, observation counts, class-frequency products, and confidence metrics, with GeoPackage intermediates and logs.
+
+The current local compositing date filter includes January 1 of `start_year` through December 31 of `end_year`. Some older production YAML comments describe an exclusive upper bound; those comments do not match this filter. The loader accepts the historical `grid_path` alias for `grid_filename` and supplies defaults for optional filtering/output flags. Repeated `--set KEY=VALUE` arguments override YAML values and are saved in the run snapshot. Unimplemented `post_process_combine=true` now raises an error instead of silently doing nothing; the portable example disables it. Review upstream `vhr_composite` compatibility before running older configurations.
+
+## GPU random forest
+
+The [RF CLI](ethiopia_lcluc_tensorflow/view/landcover_rf_pipeline_cli.py) supports `train`, `predict`, and `vis` using RAPIDS/cuML. Its training CSV must contain numeric feature columns followed by the target column named `CLASS`, with no missing values. Raster bands must match the training feature order.
 
 ```bash
-for i in {0..78}; do sbatch --mem-per-cpu=10240 -G1 -c10 -q ilab -t05-00:00:00 -J clouds --wrap="singularity exec --env PYTHONPATH=\"/explore/nobackup/people/jacaraba/development/vhr-composite-jordan-edits:/explore/nobackup/people/jacaraba/development/ethiopia-lcluc-tensorflow\" --nv -B $NOBACKUP,/lscratch,/explore/nobackup/people,/explore/nobackup/projects,/panfs/ccds02/nobackup/projects /explore/nobackup/projects/ilab/containers/tensorflow-caney-2023.05 python /explore/nobackup/people/jacaraba/development/vhr-composite-jordan-edits/examples/ethiopia/landcover_composite_pipeline.py -c /explore/nobackup/people/jacaraba/development/vhr-composite-jordan-edits/examples/ethiopia/composite_ethiopia_epoch1.yaml -t /explore/nobackup/people/jacaraba/development/vhr-composite-jordan-edits/examples/ethiopia/output_tiles_${i}.txt -s composite"; done
+python -m ethiopia_lcluc_tensorflow.view.landcover_rf_pipeline_cli \
+  --step train --train-csv /path/to/pixel-training.csv \
+  --output-model /path/to/model.pkl \
+  --train-size 0.80 --n-trees 200 --max-features log2
+
+python -m ethiopia_lcluc_tensorflow.view.landcover_rf_pipeline_cli \
+  --step predict --output-model /path/to/model.pkl \
+  --rasters '/path/to/images/*.tif' \
+  --output-dir /path/to/predictions --window-size 5120
 ```
 
-## Legacy Documentation to Fix
+The `--seed` option controls shuffling, splitting, and the RF estimator. Prediction reads rasters through Rioxarray; training requires a compatible RAPIDS environment. Dataset preparation and related experiments are in [EthiopiaDatasetGen.ipynb](notebooks/EthiopiaDatasetGen.ipynb), [EthiopiaRandomForest.ipynb](notebooks/EthiopiaRandomForest.ipynb), and [EthiopiaRandomForestMultiGPU.ipynb](notebooks/EthiopiaRandomForestMultiGPU.ipynb). The RF CLI does not expose a preprocessing step.
 
-### Debugging
+## Checks and historical documentation
+
+For a local syntax/whitespace check of app edits:
 
 ```bash
-/explore/nobackup/people/walemu/NASA_NPP/CRPld_Map_Pred_and_Forec/Training_data/training_data_with_without_ParcelsShape/WV02_20150101_M1BS_103001003CD72200-toa_BD.tif,/explore/nobackup/people/walemu/NASA_NPP/CRPld_Map_Pred_and_Forec/Training_data/training_data_with_without_ParcelsShape/Bahir_Dar_merged_6class_WV02_20150101_M1BS_103001003CD72200-toa.tif,3000
-
-
-singularity exec --env PYTHONPATH="$NOBACKUP/development/ethiopia-lcluc-tensorflow:$NOBACKUP/development/tensorflow-caney",PROJ_LIB="/usr/share/proj" --nv -B $NOBACKUP,/lscratch,/explore/nobackup/people,/explore/nobackup/projects /explore/nobackup/projects/ilab/containers/above-shrubs.2023.07 python $NOBACKUP/development/ethiopia-lcluc-tensorflow/ethiopia_lcluc_tensorflow/view/landcover_cnn_pipeline_cli.py -c /explore/nobackup/people/jacaraba/development/ethiopia-lcluc-tensorflow/projects/landcover/config/experiments/2023-06-27/local_standardization_256_crop_4band_short_tversky.yaml -d /explore/nobackup/people/jacaraba/development/ethiopia-lcluc-tensorflow/projects/landcover/config/experiments/2023-06-27/landcover_ethiopia.csv -s preprocess train predict
-
-
-singularity exec --env PYTHONPATH="$NOBACKUP/development/ethiopia-lcluc-tensorflow:$NOBACKUP/development/tensorflow-caney",PROJ_LIB="/usr/share/proj" --nv -B $NOBACKUP,/lscratch,/explore/nobackup/people,/explore/nobackup/projects /explore/nobackup/projects/ilab/containers/above-shrubs.2023.07 python $NOBACKUP/development/ethiopia-lcluc-tensorflow/ethiopia_lcluc_tensorflow/view/landcover_cnn_pipeline_cli.py -c /explore/nobackup/people/jacaraba/development/ethiopia-lcluc-tensorflow/projects/landcover/config/experiments/2023-06-27/global_standardization_256_crop_4band_short-v2.yaml -d /explore/nobackup/people/jacaraba/development/ethiopia-lcluc-tensorflow/projects/landcover/config/experiments/2023-06-27/landcover_ethiopia.csv -s preprocess train predict
-
-
-singularity exec --env PYTHONPATH="$NOBACKUP/development/ethiopia-lcluc-tensorflow:$NOBACKUP/development/tensorflow-caney",PROJ_LIB="/usr/share/proj" --nv -B $NOBACKUP,/lscratch,/explore/nobackup/people,/explore/nobackup/projects /explore/nobackup/projects/ilab/containers/above-shrubs.2023.07 python $NOBACKUP/development/ethiopia-lcluc-tensorflow/ethiopia_lcluc_tensorflow/view/landcover_cnn_pipeline_cli.py -c /explore/nobackup/people/jacaraba/development/ethiopia-lcluc-tensorflow/projects/landcover/config/experiments/2023-06-27/local_standardization_256_tree_4band_short_tversky.yaml -d /explore/nobackup/people/jacaraba/development/ethiopia-lcluc-tensorflow/projects/landcover/config/experiments/2023-06-27/landcover_ethiopia.csv -s preprocess train predict
-
-
-singularity exec --env PYTHONPATH="$NOBACKUP/development/ethiopia-lcluc-tensorflow:$NOBACKUP/development/tensorflow-caney",PROJ_LIB="/usr/share/proj" --nv -B $NOBACKUP,/lscratch,/explore/nobackup/people,/explore/nobackup/projects /explore/nobackup/projects/ilab/containers/above-shrubs.2023.07 python $NOBACKUP/development/ethiopia-lcluc-tensorflow/ethiopia_lcluc_tensorflow/view/landcover_cnn_pipeline_cli.py -c /explore/nobackup/people/jacaraba/development/ethiopia-lcluc-tensorflow/projects/landcover/config/experiments/2023-06-27/land_cover_otcb_cas-wcas_global-std_50TS_4band-tversky.yaml -d /explore/nobackup/people/jacaraba/development/ethiopia-lcluc-tensorflow/projects/landcover/config/experiments/2023-06-27/land_cover_512_otcb_50TS_cas-wcas.csv -s preprocess train predict
+node --check app/ethiopia-lcluc.js
+git diff --check
 ```
 
-## Validation
-
+These checks do not validate Earth Engine UI properties, asset access, or server-side queries. Run the app in Earth Engine and check product toggles, NoData transparency, legends, and validation clicks before publishing. Python workflows require their external dependencies and project data; this README's examples have been checked against the source interfaces, not executed as end-to-end HPC runs. Run the CPU regression suite and package checks with:
 
 ```bash
-singularity exec --env PYTHONPATH="$NOBACKUP/development/ethiopia-lcluc-tensorflow:$NOBACKUP/development/tensorflow-caney",PROJ_LIB="/usr/share/proj" --nv -B $NOBACKUP,/lscratch,/explore/nobackup/people,/explore/nobackup/projects /explore/nobackup/projects/ilab/containers/above-shrubs.2023.07 python $NOBACKUP/development/ethiopia-lcluc-tensorflow/ethiopia_lcluc_tensorflow/view/landcover_cnn_pipeline_cli.py -c /explore/nobackup/people/jacaraba/development/ethiopia-lcluc-tensorflow/projects/landcover/config/experiments/2023-06-27/global_standardization_256_crop_4band_short.yaml -d /explore/nobackup/people/jacaraba/development/ethiopia-lcluc-tensorflow/projects/landcover/config/experiments/2023-06-27/landcover_ethiopia.csv -s validate
-
-rio clip --like /explore/nobackup/people/walemu/NASA_NPP/CRPld_Map_Pred_and_Forec/Training_data/training_data_with_without_ParcelsShape/Gondar_Zunia_merged3_WV02_20130318_M1BS_10300100215E6300_toa.tif /explore/nobackup/projects/hls/EVHR/Amhara-MS/WV02_20130318_M1BS_10300100215E6300-toa.tif WV02_20130318_M1BS_10300100215E6300_toa_ext_fixed.tif
-
-singularity exec --env PYTHONPATH="$NOBACKUP/development/ethiopia-lcluc-tensorflow:$NOBACKUP/development/tensorflow-caney:$NOBACKUP/development/senegal-lcluc-tensorflow" --nv -B $NOBACKUP,/lscratch,/explore/nobackup/people,/explore/nobackup/projects /explore/nobackup/projects/ilab/containers/above-shrubs.2023.07 python /explore/nobackup/people/$USER/development/senegal-lcluc-tensorflow/senegal_lcluc_tensorflow/view/landcover_cnn_pipeline_cli.py -c /explore/nobackup/people/jacaraba/development/ethiopia-lcluc-tensorflow/projects/landcover/config/experiments/2023-06-27/global_standardization_256_crop_4band_short-v7.yaml -d /explore/nobackup/people/jacaraba/development/ethiopia-lcluc-tensorflow/projects/landcover/config/experiments/2023-06-27/landcover_ethiopia_v7.csv -s preprocess
-
-singularity exec --env PYTHONPATH="$NOBACKUP/development/ethiopia-lcluc-tensorflow:$NOBACKUP/development/tensorflow-caney:$NOBACKUP/development/senegal-lcluc-tensorflow" --nv -B $NOBACKUP,/lscratch,/explore/nobackup/people,/explore/nobackup/projects /explore/nobackup/projects/ilab/containers/above-shrubs.2023.07 python /explore/nobackup/people/$USER/development/senegal-lcluc-tensorflow/senegal_lcluc_tensorflow/view/landcover_cnn_pipeline_cli.py -c /explore/nobackup/people/jacaraba/development/ethiopia-lcluc-tensorflow/projects/landcover/config/experiments/2023-06-27/global_standardization_256_crop_4band_short-v4_all.yaml -d /explore/nobackup/people/jacaraba/development/ethiopia-lcluc-tensorflow/projects/landcover/config/experiments/2023-06-27/landcover_ethiopia_v4_all.csv -s preprocess
+python -m pytest -q
+ruff check ethiopia_lcluc_tensorflow tests
+python -m build
+python -m twine check dist/*
 ```
 
+GitHub/GitLab CI runs CPU tests and package builds. GPU training and compositing still need integration checks in the project environment. The Dockerfile installs this checkout, and publishing workflows require manual dispatch. Before release, complete the [publication metadata and environment record](docs/PUBLICATION.md#release-information-still-required).
 
-```bash
-singularity exec --env PYTHONPATH="$NOBACKUP/development/ethiopia-lcluc-tensorflow:$NOBACKUP/development/tensorflow-caney:$NOBACKUP/development/senegal-lcluc-tensorflow" --nv -B $NOBACKUP,/lscratch,/explore/nobackup/people,/explore/nobackup/projects /explore/nobackup/projects/ilab/containers/above-shrubs.2023.07 python /explore/nobackup/people/$USER/development/senegal-lcluc-tensorflow/senegal_lcluc_tensorflow/view/landcover_cnn_pipeline_cli.py -c /explore/nobackup/people/jacaraba/development/ethiopia-lcluc-tensorflow/projects/landcover/config/experiments/2023-06-27/global_standardization_256_crop_4band_short-v8.yaml -d /explore/nobackup/people/jacaraba/development/ethiopia-lcluc-tensorflow/projects/landcover/config/experiments/2023-06-27/landcover_ethiopia_v8.csv -s preprocess train predict
-```
-
-```bash
-singularity exec --env PYTHONPATH="$NOBACKUP/development/ethiopia-lcluc-tensorflow:$NOBACKUP/development/tensorflow-caney:$NOBACKUP/development/senegal-lcluc-tensorflow" --nv -B $NOBACKUP,/lscratch,/explore/nobackup/people,/explore/nobackup/projects /explore/nobackup/projects/ilab/containers/above-shrubs.2023.07 python /explore/nobackup/people/$USER/development/senegal-lcluc-tensorflow/senegal_lcluc_tensorflow/view/landcover_cnn_pipeline_cli.py -c /explore/nobackup/people/jacaraba/development/ethiopia-lcluc-tensorflow/projects/landcover/config/experiments/2023-06-27/global_standardization_256_crop_4band_short-v12.yaml -d /explore/nobackup/people/jacaraba/development/ethiopia-lcluc-tensorflow/projects/landcover/config/experiments/2023-06-27/landcover_ethiopia_v8.csv -s predict
-```
-
-
-```bash
-singularity exec --env PYTHONPATH="$NOBACKUP/development/ethiopia-lcluc-tensorflow:$NOBACKUP/development/tensorflow-caney:$NOBACKUP/development/senegal-lcluc-tensorflow" --nv -B $NOBACKUP,/lscratch,/explore/nobackup/people,/explore/nobackup/projects /explore/nobackup/projects/ilab/containers/above-shrubs.2023.07 python /explore/nobackup/people/jacaraba/development/ethiopia-lcluc-tensorflow/ethiopia_lcluc_tensorflow/view/landcover_cnn_pipeline_cli.py -c /explore/nobackup/people/jacaraba/development/ethiopia-lcluc-tensorflow/projects/landcover/config/experiments/2023-06-27/global_standardization_256_crop_4band_short-v12.yaml -vd /explore/nobackup/people/walemu/NASA_NPP/CRPld_Map_Pred_and_Forec/Training_data/Validation_data/GT_points_AGU2023_12_2010.shp -s validate
-```
-
-## Tutorial
-
-```bash
-singularity exec --env PYTHONPATH="/explore/nobackup/people/jacaraba/development/ethiopia-lcluc-tensorflow:/explore/nobackup/people/jacaraba/development/tensorflow-caney:/explore/nobackup/people/jacaraba/development/senegal-lcluc-tensorflow" --nv -B /explore/nobackup/people/jacaraba,$NOBACKUP,/lscratch,/explore/nobackup/people,/explore/nobackup/projects /explore/nobackup/projects/ilab/containers/vhr-cloudmask.sif python /explore/nobackup/people/jacaraba/development/ethiopia-lcluc-tensorflow/ethiopia_lcluc_tensorflow/view/landcover_cnn_pipeline_cli.py -c /explore/nobackup/people/jacaraba/development/ethiopia-lcluc-tensorflow/projects/landcover/config/experiments/tutorial/ethiopia_normalized_256_builtup_4band.yaml -d /explore/nobackup/people/jacaraba/development/ethiopia-lcluc-tensorflow/projects/landcover/config/experiments/tutorial/ethiopia_normalized_256_builtup_4band.csv -s preprocess
-```
+Historical references remain available in [dataset notes](docs/DATASET.md), [random-forest notes](docs/README-RandomForest.md), [project notes](docs/README.md), and [the model survey](docs/ModelSurvey.md). Their paths, scripts, and class schemes may predate the current workflows. Use the DOI badge above to locate the repository's archived release record.

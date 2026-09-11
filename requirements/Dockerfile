@@ -1,10 +1,17 @@
-FROM nasanccs/vhr-cloudmask:latest
-LABEL maintainer="jordan.a.caraballo-vega@nasa.gov"
+# Supply a tested base tag/digest for a publication build.
+ARG BASE_IMAGE=nasanccs/vhr-cloudmask:latest
+FROM ${BASE_IMAGE}
+LABEL org.opencontainers.image.source="https://github.com/nasa-nccs-hpda/ethiopia-lcluc-tensorflow"
 
-ENV TFC_VERSION=0.1.1
-ENV ETHIOPIA_LCLUC_TENSORFLOW_VERSION=main
-
-RUN pip install git+https://github.com/nasa-nccs-hpda/ethiopia-lcluc-tensorflow.git@main
+WORKDIR /opt/ethiopia-lcluc-tensorflow
+COPY pyproject.toml MANIFEST.in README.md ./
+COPY ethiopia_lcluc_tensorflow ./ethiopia_lcluc_tensorflow
+COPY examples ./examples
+COPY app ./app
+COPY docs ./docs
+COPY slurm ./slurm
+RUN python -m pip install --no-cache-dir '.[validation]'
 
 HEALTHCHECK NONE
-ENTRYPOINT [""]
+ENTRYPOINT []
+CMD ["ethiopia-cnn", "--help"]

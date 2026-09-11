@@ -10,27 +10,6 @@ import glob
 import random
 import logging
 import argparse
-from tqdm import tqdm
-
-import joblib
-import numpy as np
-import xarray as xr
-import pandas as pd
-from osgeo import gdal, osr
-import rasterio as rio
-import rasterio.features as riofeat
-
-import cupy
-import cudf
-import cuml
-
-from cuml.ensemble import RandomForestClassifier as cumlRFC
-from cuml.model_selection import train_test_split
-from cuml.metrics import accuracy_score
-from cupyx.scipy.ndimage import median_filter
-
-cupy.random.seed(seed=24)
-
 __author__ = "Jordan A Caraballo-Vega, Science Data Processing Branch"
 __email__ = "jordan.a.caraballo-vega@nasa.gov"
 __status__ = "Production"
@@ -51,6 +30,9 @@ def predict(data, model, ws=[5120, 5120]):
         raster.toraster(filename, raster_obj.prediction, outname)
     ----------
     """
+    import numpy as np
+    from tqdm import tqdm
+
     # open rasters and get both data and coordinates
     rast_shape = data[0, :, :].shape  # shape of the wider scene
     wsx, wsy = ws[0], ws[1]  # in memory sliding window predictions
@@ -77,8 +59,10 @@ def predict(data, model, ws=[5120, 5120]):
             window = window.transpose("z", "band").values  # reshape
 
             # perform sliding window prediction
-            prediction[x0:x1, y0:y1] = \
-                model.predict(window).reshape((x1 - x0, y1 - y0))
+            result = model.predict(window)
+            if hasattr(result, 'get'):
+                result = result.get()
+            prediction[x0:x1, y0:y1] = np.asarray(result).reshape((x1 - x0, y1 - y0))
     # save raster
     return prediction.astype('int16')  # type to int16
 
@@ -98,6 +82,9 @@ def arr_to_tif(raster_f, segments, out_tif='s.tif', ndval=-10001):
     ----------
         arr_to_tif('inp.tif', segments, 'out.tif', ndval=-9999)
     """
+    import numpy as np
+    import rasterio as rio
+
     # get geospatial profile, will apply for output file
     with rio.open(raster_f) as src:
         meta = src.profile
@@ -124,6 +111,10 @@ def arr_to_tif(raster_f, segments, out_tif='s.tif', ndval=-10001):
 def to_cog(
         input_array, output_filename, original_filename,
         transform, epsg=32628, ndval=255, ovr=[2, 4, 8, 16, 32, 64]):
+
+    import numpy as np
+    import rasterio as rio
+    from osgeo import gdal, osr
 
     # get geospatial profile, will apply for output file
     with rio.open(original_filename) as src:
@@ -159,7 +150,7 @@ def to_cog(
 #
 # python rf_driver.py options here
 # -----------------------------------------------------------------------------
-def main():
+def main(argv=None):
 
     # Process command-line args.
     desc = 'Random Forest Segmentation pipeline for tabular and spatial data.'
@@ -174,7 +165,7 @@ def main():
         dest='train_csv', help='Path to the output CSV file')
 
     parser.add_argument(
-        '--step', type=str, nargs='*', required=True,
+        '--step', type=str, nargs='+', required=True,
         dest='pipeline_step', help='Pipeline step to perform',
         default=['train', 'predict', 'vis'],
         choices=['train', 'predict', 'vis'])
@@ -211,7 +202,25 @@ def main():
         '--output-dir', type=str, required=False,
         dest='output_dir', default='', help='output directory')
 
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
+    if not args.output_pkl:
+        parser.error('--output-model is required')
+    if 'train' in args.pipeline_step and not args.train_csv:
+        parser.error('--train-csv is required for training')
+    if 'predict' in args.pipeline_step and not args.output_dir:
+        parser.error('--output-dir is required for prediction')
+    if args.ws < 1 or args.n_trees < 1 or not 0 < args.train_size < 1:
+        parser.error('window size and tree count must be positive; train size must be between 0 and 1')
+
+    import joblib
+    import numpy as np
+    import rioxarray as rxr
+    import cupy
+    import cudf
+    from cuml.ensemble import RandomForestClassifier as cumlRFC
+    from cuml.model_selection import train_test_split
+    from cuml.metrics import accuracy_score
+    cupy.random.seed(args.seed)
 
     # --------------------------------------------------------------------------------
     # set logging
@@ -243,7 +252,9 @@ def main():
         # ----------------------------------------------------------------------------
         # 2. Shuffle and Split Dataset
         # ----------------------------------------------------------------------------
-        data_df = data_df.sample(frac=1).reset_index(drop=True)  # shuffle data
+        data_df = data_df.sample(frac=1, random_state=args.seed).reset_index(drop=True)  # shuffle data
+        if data_df.columns[-1] != 'CLASS':
+            parser.error('The last training CSV column must be named CLASS')
         logging.info(data_df['CLASS'].value_counts())
 
         # split dataset, fix type
@@ -252,7 +263,7 @@ def main():
 
         # split data into training and test
         x_train, x_test, y_train, y_test = train_test_split(
-            x, y, train_size=args.train_size)
+            x, y, train_size=args.train_size, random_state=args.seed)
         del data_df, x, y
 
         # logging some of the model information
@@ -263,7 +274,8 @@ def main():
         # 3. Instantiate RandomForest object
         # ------------------------------------------------------------------
         rf_model = cumlRFC(
-            n_estimators=args.n_trees, max_features=args.max_feat)
+            n_estimators=args.n_trees, max_features=args.max_feat,
+            random_state=args.seed, output_type="numpy")
 
         # fit model to training data and predict for accuracy score
         rf_model.fit(x_train, y_train)
@@ -271,7 +283,7 @@ def main():
         # ------------------------------------------------------------------
         # 4. Predict test set for accuracy metrics
         # ------------------------------------------------------------------
-        acc_score = accuracy_score(y_test, rf_model.predict(x_test).to_array())
+        acc_score = accuracy_score(y_test, rf_model.predict(x_test))
         logging.info(f'Test Accuracy:  {acc_score}')
 
         # make output directory
@@ -311,13 +323,10 @@ def main():
 
                 gc.collect()  # clean garbage
                 logging.info(f"Starting new prediction...{rast}")
-                img = xr.open_rasterio(rast)
-                transform = img.attrs['transform']
-                logging.info(f'Modified image: {img.shape}')
-
-                # crop ROI, from outside to inside based on pixel value
-                img = np.clip(img, 0, 10000)
-                prediction = predict(img, model, ws=[args.ws, args.ws])
+                with rxr.open_rasterio(rast) as img:
+                    logging.info(f'Modified image: {img.shape}')
+                    prediction = predict(img.clip(min=0, max=10000), model,
+                                         ws=[args.ws, args.ws])
 
                 # sieve
                 #riofeat.sieve(prediction, 800, prediction, None, 8)

@@ -2,8 +2,6 @@ import sys
 import time
 import logging
 import argparse
-from ethiopia_lcluc_tensorflow.model.pipelines.landcover_composite_pipeline \
-    import LandCoverCompositePipeline
 
 
 # -----------------------------------------------------------------------------
@@ -11,10 +9,10 @@ from ethiopia_lcluc_tensorflow.model.pipelines.landcover_composite_pipeline \
 #
 # python landcover_composite_pipeline_cli.py -c config.yaml
 # -----------------------------------------------------------------------------
-def main():
+def main(argv=None):
 
     # Process command-line args.
-    desc = 'Use this application to generate Senegal composite.'
+    desc = 'Use this application to generate Amhara composites.'
     parser = argparse.ArgumentParser(description=desc)
 
     parser.add_argument('-c',
@@ -33,7 +31,7 @@ def main():
                         '-s',
                         '--step',
                         type=str,
-                        nargs='*',
+                        nargs='+',
                         required=True,
                         dest='pipeline_step',
                         help='Pipeline step to perform',
@@ -45,13 +43,18 @@ def main():
                             'build_footprints',
                             'extract_metadata',
                             'composite'])
-    args = parser.parse_args()
+    parser.add_argument('--set', action='append', default=[], metavar='KEY=VALUE',
+                        help='Override a YAML setting; may be repeated')
+    args = parser.parse_args(argv)
+    if 'composite' in args.pipeline_step and not args.tiles_filename:
+        parser.error('--tiles-filename is required for the composite step')
+    from ethiopia_lcluc_tensorflow.model.pipelines.landcover_composite_pipeline import LandCoverCompositePipeline
 
     # Setup timer to monitor script execution time
     timer = time.time()
 
     # setup pipeline object
-    pipeline = LandCoverCompositePipeline(args.config_file)
+    pipeline = LandCoverCompositePipeline(args.config_file, args.set)
 
     # Compositing pipeline steps
     if "build_footprints" in args.pipeline_step:

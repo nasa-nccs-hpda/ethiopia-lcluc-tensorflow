@@ -1,78 +1,62 @@
-import sys
-import time
-import logging
+"""CNN preprocessing, training, prediction, and reference-point validation."""
 import argparse
-from ethiopia_lcluc_tensorflow.model.pipelines.landcover_pipeline \
-    import LandCoverPipeline
+import logging
+import time
+
+from ethiopia_lcluc_tensorflow.utils.config import load_config, resolved_config_file
 
 
-# -----------------------------------------------------------------------------
-# main
-#
-# python landcover_cnn_pipeline_cli.py -c config.yaml -d config.yaml -s train
-# -----------------------------------------------------------------------------
-def main():
-
-    # Process command-line args.
-    desc = 'Use this application to perform CNN segmentation.'
-    parser = argparse.ArgumentParser(description=desc)
-
-    parser.add_argument('-c',
-                        '--config-file',
-                        type=str,
-                        required=True,
-                        dest='config_file',
-                        help='Path to the configuration file')
-
-    parser.add_argument('-d',
-                        '--data-csv',
-                        type=str,
-                        required=False,
-                        dest='data_csv',
-                        help='Path to the data configuration file')
-
-    parser.add_argument('-vd',
-                        '--validation-database',
-                        type=str,
-                        required=False,
-                        default=None,
-                        dest='validation_database',
-                        help='Path to validation database')
-
-    parser.add_argument(
-                        '-s',
-                        '--step',
-                        type=str,
-                        nargs='*',
-                        required=True,
-                        dest='pipeline_step',
-                        help='Pipeline step to perform',
-                        default=['preprocess', 'train', 'predict'],
-                        choices=['preprocess', 'train', 'predict', 'validate'])
-
-    args = parser.parse_args()
-
-    # Setup timer to monitor script execution time
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("-c", "--config-file", required=True)
+    parser.add_argument("-d", "--data-csv")
+    parser.add_argument("-vd", "--validation-database")
+    parser.add_argument("--validation-predictions", nargs="+")
+    parser.add_argument("--validation-output-dir")
+    parser.add_argument("--label-column", default="val_class")
+    parser.add_argument("--ignore-values", nargs="*", type=int, default=[])
+    parser.add_argument("--overlap", choices=["error", "first", "last"], default="error")
+    parser.add_argument("--overwrite", action="store_true")
+    parser.add_argument("--set", action="append", default=[], metavar="KEY=VALUE",
+                        help="Override a YAML setting; may be repeated")
+    parser.add_argument("-s", "--step", nargs="+", required=True,
+                        choices=["preprocess", "train", "predict", "validate"])
+    args = parser.parse_args(argv)
+    logging.basicConfig(level=logging.INFO)
     timer = time.time()
+    config = load_config(args.config_file, args.set)
+    if "preprocess" in args.step and not args.data_csv:
+        parser.error("--data-csv is required for preprocessing")
+    if "validate" in args.step:
+        reference = args.validation_database or config.get("validation_database")
+        predictions = args.validation_predictions or config.get("validation_predictions")
+        output = args.validation_output_dir or config.get("validation_output_dir")
+        if not reference or not predictions or not output:
+            parser.error("validation requires a database, prediction paths/globs, and output directory")
+    if any(step in args.step for step in ("preprocess", "train", "predict")):
+        # Validation and --help do not require the TensorFlow/GPU stack.
+        from ethiopia_lcluc_tensorflow.model.pipelines.landcover_pipeline import LandCoverPipeline
+        # Evaluation settings are handled here, not by the upstream CNN schema.
+        cnn_config = config.copy()
+        for key in ("validation_predictions", "validation_output_dir"):
+            cnn_config.pop(key, None)
+        with resolved_config_file(cnn_config) as filename:
+            pipeline = LandCoverPipeline(filename, args.data_csv)
+            if "preprocess" in args.step:
+                pipeline.preprocess(enable_multiprocessing=True)
+            if "train" in args.step:
+                pipeline.train()
+            if "predict" in args.step:
+                pipeline.predict()
+    if "validate" in args.step:
+        from ethiopia_lcluc_tensorflow.model.validation import validate_points
+        report = validate_points(reference, predictions, output,
+                                 label_column=args.label_column, ignore_values=args.ignore_values,
+                                 overlap=args.overlap, overwrite=args.overwrite)
+        logging.info("Validation accuracy: %.4f", report["accuracy"])
+    logging.info("Took %.2f min.", (time.time() - timer) / 60)
+    return 0
 
-    # Initialize pipeline object
-    pipeline = LandCoverPipeline(args.config_file, args.data_csv)
 
-    # Regression CHM pipeline steps
-    if "preprocess" in args.pipeline_step:
-        pipeline.preprocess(enable_multiprocessing=True)
-    if "train" in args.pipeline_step:
-        pipeline.train()
-    if "predict" in args.pipeline_step:
-        pipeline.predict()
-    if "validate" in args.pipeline_step:
-        pipeline.validate(args.validation_database)
-
-    logging.info(f'Took {(time.time()-timer)/60.0:.2f} min.')
-
-
-# -----------------------------------------------------------------------------
-# Invoke the main
-# -----------------------------------------------------------------------------
 if __name__ == "__main__":
-    sys.exit(main())
+    raise SystemExit(main())
