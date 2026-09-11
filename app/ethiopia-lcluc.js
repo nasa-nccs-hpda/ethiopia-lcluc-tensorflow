@@ -9,15 +9,32 @@ var ethiopiaBoundary = ee.FeatureCollection(
   'projects/ee-jacaraba-ethiopia/assets/boundaries/Amhara_Study_Area_Boundary_4buf10km_EPSG_GEE'
 );
 
-var worldCov10m = ee.ImageCollection('ESA/WorldCover/v100')
-  .first()
-  .clip(ethiopiaBoundary);
+// Aligned evaluation products already uploaded to the GSFC DSG project.
+// Select the first band because uploaded GeoTIFF band names may vary.
+function comparisonImage(assetName) {
+  return ee.Image('projects/gsfc-dsg/assets/' + assetName)
+    .select([0])
+    .clip(ethiopiaBoundary);
+}
 
-var gladCropland = ee.ImageCollection('users/potapovpeter/Global_cropland_2019')
-  .map(function(img) {
-    var clipped = img.clip(ethiopiaBoundary);
-    return clipped.updateMask(clipped.gt(0));
-  });
+var deaCropland = comparisonImage(
+  'DigitalEarthAfrica_crop_mask_2019_Amhara_LCLUcrop0_nonCrop255'
+);
+// Crop is 0; hide non-crop (255) without masking valid crop pixels.
+deaCropland = deaCropland.updateMask(deaCropland.eq(0));
+
+var worldCover2020 = comparisonImage(
+  'ESA_WorldCover_10m_2020_v100_Amhara_reclass'
+);
+var esri2020 = comparisonImage('ESRI_LULC_36P37P_2020_Amhara_reclass');
+var glad2020 = comparisonImage('GLAD2020_Amhara_reclass');
+var dynamicWorld2020 = comparisonImage(
+  'Google_DynamicWorld_LULC_2020_mode_2_reclass'
+);
+
+var validationPoints = ee.FeatureCollection(
+  'projects/gsfc-dsg/assets/Amhara_validation_points_2026'
+).filterBounds(ethiopiaBoundary);
 
 var canopyHeight = ee.ImageCollection(
   'projects/sat-io/open-datasets/facebook/meta-canopy-height'
@@ -71,38 +88,28 @@ var lcNames = [
   'Water'
 ];
 
-var worldCovPalette = [
-  '#006400',
-  '#ffbb22',
-  '#ffff4c',
-  '#f096ff',
-  '#fa0000',
-  '#b4b4b4',
-  '#f0f0f0',
-  '#0064c8',
-  '#0096a0',
-  '#00cf75',
-  '#fae6a0'
-];
-
-var worldCovNames = [
-  '10 Trees',
-  '20 Shrubland',
-  '30 Grassland',
-  '40 Cropland',
-  '50 Built-up',
-  '60 Barren / sparse vegetation',
-  '70 Snow and ice',
-  '80 Open water',
-  '90 Herbaceous wetland',
-  '95 Mangroves',
-  '100 Moss and lichen'
-];
-
+// Local raster values and validation-point sampling support codes 0–4 above.
+// See README.md for the class scheme and limits of this verification.
 var lcVis = {
   min: 0,
   max: 4,
   palette: lcPalette
+};
+
+// Explicitly mask each GeoTIFF's NoData value, preserving valid class 0.
+function classifiedComparison(image, noData) {
+  return image.updateMask(image.neq(noData));
+}
+
+// Treat ESRI code 7 as NoData along with its declared NoData value 15.
+var esriDisplay = classifiedComparison(esri2020, 15)
+  .updateMask(esri2020.neq(7));
+
+var validationStyle = {
+  color: '000000',
+  fillColor: 'ff00ff',
+  pointSize: 5,
+  width: 1
 };
 
 var nobsVis = {
@@ -149,17 +156,38 @@ function addLayer(image, vis, name, shown, opacity) {
 }
 
 var layers = {
+  dea: addLayer(
+    deaCropland,
+    {min: 0, max: 1, palette: [lcPalette[0]]},
+    'Digital Earth Africa Cropland 2019 (aligned)',
+    false
+  ),
+
   worldCov: addLayer(
-    worldCov10m,
-    {bands: ['Map']},
-    'ESA WorldCover 10 m',
+    classifiedComparison(worldCover2020, -128),
+    lcVis,
+    'ESA WorldCover 2020 (aligned/reclassified)',
+    false
+  ),
+
+  esri: addLayer(
+    esriDisplay,
+    lcVis,
+    'ESRI Land Cover 2020 (aligned/reclassified)',
     false
   ),
 
   glad: addLayer(
-    gladCropland,
-    {palette: ['#FFA500'], min: 0, max: 1},
-    'GLAD Cropland 2019',
+    classifiedComparison(glad2020, 15),
+    lcVis,
+    'GLAD 2020 (aligned/reclassified)',
+    false
+  ),
+
+  dynamicWorld: addLayer(
+    classifiedComparison(dynamicWorld2020, 15),
+    lcVis,
+    'Google Dynamic World 2020 (aligned/reclassified)',
     false
   ),
 
@@ -216,6 +244,14 @@ var layers = {
   )
 };
 
+// Add points last so they remain visible above raster layers when enabled.
+layers.validation = addLayer(
+  validationPoints.style(validationStyle),
+  {},
+  'Validation / Reference Points 2026',
+  false
+);
+
 
 // -------------------------
 // 5) UI helpers
@@ -255,6 +291,9 @@ function makeCheckbox(label, layer, defaultValue) {
 
   checkbox.onChange(function(checked) {
     layer.setShown(checked);
+    if (layer === layers.validation && !checked) {
+      closeValidationPopup();
+    }
   });
 
   return checkbox;
@@ -308,7 +347,7 @@ function makeLegendRow(color, name) {
   });
 }
 
-function makeDiscreteLegend(title, colors, names) {
+function makeDiscreteLegend(title, colors, names, description) {
   var legend = ui.Panel({
     style: {
       margin: '8px',
@@ -324,6 +363,12 @@ function makeDiscreteLegend(title, colors, names) {
     color: '#333333',
     margin: '0 0 6px 0'
   }));
+
+  if (description) {
+    legend.add(ui.Label(description, {
+      fontSize: '11px', color: '#555555', margin: '0 0 8px 0'
+    }));
+  }
 
   for (var i = 0; i < colors.length; i++) {
     legend.add(makeLegendRow(colors[i], names[i]));
@@ -397,13 +442,13 @@ var panel = ui.Panel({
 panel.add(titleLabel('Amhara Land Cover Explorer'));
 
 panel.add(subtitleLabel(
-  'Compare 2 m land-cover products, cropland extent, canopy height, and observation density across Amhara, Ethiopia.'
+  'Compare 2 m land-cover products with aligned evaluation maps and validation points across Amhara, Ethiopia.'
 ));
 
 panel.add(sectionLabel('Reference Layers'));
 panel.add(makeCheckbox('Amhara Study Boundary', boundaryLayer, true));
-panel.add(makeCheckbox('ESA WorldCover 10 m', layers.worldCov, false));
-panel.add(makeCheckbox('GLAD Cropland 2019', layers.glad, false));
+panel.add(makeCheckbox('Validation / Reference Points 2026', layers.validation, false));
+panel.add(subtitleLabel('Enable validation points, then click a point to see its reference class.'));
 panel.add(makeCheckbox('Meta Canopy Height 1 m', layers.chm, false));
 
 panel.add(sectionLabel('Amhara LCLU 2 m Products'));
@@ -412,6 +457,16 @@ panel.add(makeCheckbox('LCLU 2018–2022', layers.lc1822, false));
 panel.add(makeCheckbox('LCLU 2017–2024', layers.lc1724, true));
 panel.add(makeOpacitySlider(layers.lc1724, 'Opacity: LCLU 2017–2024', 1.0));
 
+panel.add(sectionLabel('Aligned / Reclassified Comparisons'));
+panel.add(subtitleLabel(
+  'Use the LCLU opacity slider above to reveal comparison maps beneath it. Enable one comparison at a time.'
+));
+panel.add(makeCheckbox('Digital Earth Africa Cropland 2019', layers.dea, false));
+panel.add(makeCheckbox('ESA WorldCover 2020', layers.worldCov, false));
+panel.add(makeCheckbox('ESRI Land Cover 2020', layers.esri, false));
+panel.add(makeCheckbox('GLAD 2020', layers.glad, false));
+panel.add(makeCheckbox('Google Dynamic World 2020', layers.dynamicWorld, false));
+
 panel.add(sectionLabel('Observation Density Layers'));
 panel.add(makeCheckbox('Observations 2009–2016', layers.nobs0916, false));
 panel.add(makeCheckbox('Observations 2018–2022', layers.nobs1822, false));
@@ -419,7 +474,12 @@ panel.add(makeCheckbox('Observations 2017–2024', layers.nobs1724, false));
 panel.add(makeOpacitySlider(layers.nobs1724, 'Opacity: Observations 2017–2024', 0.85));
 
 panel.add(sectionLabel('Legends'));
-panel.add(makeDiscreteLegend('ESA WorldCover', worldCovPalette, worldCovNames));
+panel.add(makeDiscreteLegend('Shared Land Cover Classes', lcPalette, lcNames,
+  'Applies to all GSFC LCLU periods, ESA WorldCover 2020, ESRI Land Cover 2020, GLAD 2020, and Google Dynamic World 2020.'));
+panel.add(makeDiscreteLegend('Digital Earth Africa Cropland 2019',
+  [lcPalette[0]], ['Crop (non-crop transparent)']));
+panel.add(makeDiscreteLegend('Reference Points',
+  ['#' + validationStyle.fillColor], ['Validation / Reference Points 2026']));
 panel.add(makeGradientLegend('Observation Count', nobsVis, '0', '100+'));
 panel.add(makeGradientLegend('Canopy Height', chmVis, '0 m', '20 m'));
 
@@ -449,3 +509,90 @@ var mapBadge = ui.Label('GSFC DSG | Amhara 2 m LCLU Explorer', {
 });
 
 Map.add(mapBadge);
+
+
+// -------------------------
+// 9) Validation point popup
+// -------------------------
+var validationRequestId = 0;
+var selectedValidation = addLayer(
+  ee.FeatureCollection([]), {}, 'Selected Validation Point', false
+);
+var validationPopup = ui.Panel({
+  style: {
+    position: 'bottom-left',
+    width: '280px',
+    padding: '10px',
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    shown: false
+  }
+});
+Map.add(validationPopup);
+
+function closeValidationPopup() {
+  // Invalidate in-flight queries so closing cannot reopen the popup.
+  validationRequestId++;
+  validationPopup.style().set('shown', false);
+  selectedValidation.setShown(false);
+}
+
+function showValidationPopup(message) {
+  validationPopup.clear();
+  validationPopup.add(ui.Button({
+    label: 'Close',
+    onClick: closeValidationPopup,
+    style: {margin: '0 0 4px 0'}
+  }));
+  validationPopup.add(ui.Label('Validation Point', {fontWeight: 'bold'}));
+  validationPopup.add(ui.Label(message));
+  validationPopup.style().set('shown', true);
+}
+
+Map.onClick(function(coords) {
+  closeValidationPopup();
+  if (!layers.validation.getShown()) return;
+
+  var requestId = validationRequestId;
+  var location = ee.Geometry.Point([coords.lon, coords.lat]);
+  // Eight screen pixels gives a consistent click target as the map zooms.
+  var radius = Number(Map.getScale()) * 8;
+  var nearest = validationPoints.filterBounds(location.buffer(radius))
+    .map(function(feature) {
+      return feature.set('_clickDistance', feature.geometry().distance(location, 1));
+    })
+    .sort('_clickDistance')
+    .limit(1);
+
+  showValidationPopup('Loading reference class…');
+  nearest.evaluate(function(result, error) {
+    // Ignore older responses after another click or closing the popup.
+    if (requestId !== validationRequestId) return;
+    if (!layers.validation.getShown()) {
+      closeValidationPopup();
+      return;
+    }
+    if (error) {
+      showValidationPopup('Could not load this point. Please try again.');
+      return;
+    }
+    if (!result || !result.features || !result.features.length) {
+      showValidationPopup('No validation point nearby. Click closer to a point.');
+      return;
+    }
+
+    var feature = result.features[0];
+    var properties = feature.properties || {};
+    // val_class is a text field in the uploaded shapefile; keep code 0 valid.
+    var code = properties.val_class == null ? '' : String(properties.val_class).trim();
+    var className = /^[0-4]$/.test(code) ? lcNames[Number(code)] : 'Unknown class';
+    showValidationPopup('Class: ' + className + (code ? ' (code ' + code + ')' : ''));
+    if (properties.Land_Use) {
+      validationPopup.add(ui.Label('Reference label: ' + properties.Land_Use));
+    }
+
+    selectedValidation.setEeObject(ee.FeatureCollection([ee.Feature(feature)]).style({
+      color: 'ffff00', fillColor: '00000000', pointSize: 12, width: 2
+    }));
+    selectedValidation.setShown(true);
+  });
+});
